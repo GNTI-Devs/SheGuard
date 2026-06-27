@@ -124,6 +124,7 @@ export default function ConversationScreen() {
     return () => {
       cancelled = true;
       if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
+      connection.disconnect();
       AudioSession.stopAudioSession();
     };
   }, []);
