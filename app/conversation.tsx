@@ -20,8 +20,10 @@ import {
 } from '@livekit/components-react';
 import {
   AudioSession,
+  AndroidAudioTypePresets,
   useIOSAudioManagement,
   useLocalParticipant,
+  useRemoteParticipants,
   BarVisualizer,
   VideoTrack,
   useRoomContext,
@@ -88,6 +90,17 @@ export default function ConversationScreen() {
     async function start() {
       try {
         await AudioSession.startAudioSession();
+        // On Android, explicitly configure audio to route to speaker (not earpiece)
+        // This ensures the agent's voice plays through the main speaker
+        await AudioSession.configureAudio({
+          android: {
+            preferredOutputList: ['speaker', 'bluetooth', 'headset', 'earpiece'],
+            audioTypeOptions: AndroidAudioTypePresets.communication,
+          },
+          ios: {
+            defaultOutput: 'speaker',
+          },
+        });
       } catch (e) {
         console.error('Failed to start audio session:', e);
       }
@@ -135,7 +148,11 @@ export default function ConversationScreen() {
 
   const handleCancelConnection = () => {
     connection.disconnect();
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)');
+    }
   };
 
   const handleRetry = () => {
@@ -240,7 +257,8 @@ function ConversationRoomContent({ room }: { room: any }) {
 
   useIOSAudioManagement(room, true);
 
-  const { state: agentState, microphoneTrack, cameraTrack } = useAgent();
+  const remoteParticipants = useRemoteParticipants();
+  const { state: agentState, microphoneTrack: agentMicTrack, cameraTrack } = useAgent();
   const { messages } = useSessionMessages();
   const { isMicrophoneEnabled, localParticipant } = useLocalParticipant();
   const micToggle = useTrackToggle({ source: Track.Source.Microphone });
@@ -336,12 +354,16 @@ function ConversationRoomContent({ room }: { room: any }) {
       console.error('Failed to log conversation details:', e);
     } finally {
       connection.disconnect();
-      router.back();
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(tabs)');
+      }
     }
   };
 
-  const handleCallHospital = () => {
-    const phone = profile?.emergencyContacts?.[0] || '112';
+  const handleCallDoctor = () => {
+    const phone = profile?.doctorPhone || profile?.emergencyContacts?.[0] || '112';
     Linking.openURL(`tel:${phone}`);
   };
 
@@ -457,7 +479,7 @@ function ConversationRoomContent({ room }: { room: any }) {
                         : activeColors.primary,
                       barBorderRadius: barBorderRadius,
                     }}
-                    trackRef={microphoneTrack}
+                    trackRef={agentMicTrack}
                     style={styles.visualizer}
                   />
                 ) : (
@@ -636,7 +658,7 @@ function ConversationRoomContent({ room }: { room: any }) {
 
             <View style={styles.overlayActions}>
               <TouchableOpacity
-                onPress={handleCallHospital}
+                onPress={handleCallDoctor}
                 style={[styles.actionBtn, { backgroundColor: '#FFFFFF' }]}
                 activeOpacity={0.8}
               >
@@ -651,7 +673,7 @@ function ConversationRoomContent({ room }: { room: any }) {
                     { color: activeColors.emergency },
                   ]}
                 >
-                  Call Doctor / Hospital
+                  {profile?.doctorPhone ? 'Call My Doctor' : 'Call Doctor / Hospital'}
                 </Text>
               </TouchableOpacity>
 

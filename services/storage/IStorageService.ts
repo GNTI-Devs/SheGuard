@@ -8,6 +8,7 @@ export interface UserProfile {
   dueDate: string; // ISO date string
   isDemo: boolean;
   emergencyContacts: string[];
+  doctorPhone?: string;
   createdAt: string;
 }
 

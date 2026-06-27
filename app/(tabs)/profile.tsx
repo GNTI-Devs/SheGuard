@@ -27,6 +27,23 @@ export default function ProfileScreen() {
 
   const [newContact, setNewContact] = useState('');
   const [isEditingLang, setIsEditingLang] = useState(false);
+  const [doctorPhone, setDoctorPhone] = useState(profile?.doctorPhone || '');
+
+  React.useEffect(() => {
+    if (profile?.doctorPhone !== undefined) {
+      setDoctorPhone(profile.doctorPhone);
+    }
+  }, [profile?.doctorPhone]);
+
+  const handleUpdateDoctorPhone = async (num: string) => {
+    if (!profile) return;
+    const updatedProfile = { ...profile, doctorPhone: num.trim() || undefined };
+    try {
+      await saveProfile(updatedProfile);
+    } catch (e) {
+      console.error('Failed to update doctor phone:', e);
+    }
+  };
 
   const handleAddContact = async () => {
     if (!newContact.trim() || !profile) return;
@@ -299,6 +316,44 @@ export default function ProfileScreen() {
             >
               <Ionicons name="add" size={22} color="#FFFFFF" />
             </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Doctor's Contact */}
+        <View
+          style={[
+            styles.section,
+            { backgroundColor: activeColors.surface, borderColor: activeColors.border },
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <Ionicons name="medical" size={20} color={activeColors.primary} />
+            <Text style={[styles.sectionTitle, { color: activeColors.text }]}>
+              My Doctor's Contact
+            </Text>
+          </View>
+          <Text style={[styles.sectionHint, { color: activeColors.textMuted }]}>
+            Set your primary doctor's phone number. In case of emergency check-ins, you can easily call or alert your doctor.
+          </Text>
+          <View style={styles.addContactRow}>
+            <TextInput
+              style={[
+                styles.contactInput,
+                {
+                  color: activeColors.text,
+                  borderColor: activeColors.border,
+                  backgroundColor: activeColors.surface2,
+                },
+              ]}
+              placeholder="+234..."
+              placeholderTextColor={activeColors.textMuted}
+              keyboardType="phone-pad"
+              value={doctorPhone}
+              onChangeText={(text) => {
+                setDoctorPhone(text);
+                handleUpdateDoctorPhone(text);
+              }}
+            />
           </View>
         </View>
 

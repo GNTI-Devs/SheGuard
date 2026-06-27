@@ -1,6 +1,7 @@
+import asyncio
 import logging
 import os
-from livekit.agents import cli, AgentSession, JobContext, WorkerOptions, Agent
+from livekit.agents import cli, AgentSession, JobContext, WorkerOptions, Agent, llm
 from livekit.plugins import google
 
 # Load env variables from agent/.env since it's run from the project root
@@ -73,13 +74,21 @@ Your core responsibilities:
 Remember: You are not replacing a doctor. Always encourage professional medical care.
 When in doubt: "Please see a health worker as soon as you can."
 
+IMPORTANT: When the session starts, you MUST immediately greet the user warmly in their
+preferred language WITHOUT waiting for them to speak first. Do NOT wait for user input.
+Open with a short, warm welcome — for example in English:
+"Hello! I'm SheGuard, your pregnancy companion. How are you feeling today?"
+Always greet first. Always speak first.
+
 The user's preferred language is in their participant attribute: `language`.
 Always check this and respond accordingly from the very first message.
 """
 
 async def entrypoint(ctx: JobContext):
-    logger.info(f"starting sheguard agent for room: {ctx.room.name}")
-    
+    # Connect to the room first so that WebRTC tracks bind and participants populate
+    await ctx.connect()
+    logger.info("Connected to room successfully")
+
     # Resolve initial user language from participant attributes or metadata fallback
     user_lang = "en"
     user_participant = None
@@ -112,6 +121,7 @@ async def entrypoint(ctx: JobContext):
         instructions=dynamic_instructions,
     )
 
+    @llm.function_tool
     async def log_symptoms(symptoms: list[str]) -> str:
         """Log a list of pregnancy symptoms reported by the user (e.g. ['nausea', 'headache', 'swelling'])."""
         logger.info(f"AI Tool: Logging symptoms: {symptoms}")
@@ -121,6 +131,7 @@ async def entrypoint(ctx: JobContext):
         })
         return f"Successfully logged symptoms: {symptoms}"
 
+    @llm.function_tool
     async def schedule_appointment(title: str, date_time_str: str) -> str:
         """Schedule an upcoming medical checkup, scan, or prenatal visit. Parameter date_time_str should be ISO format (e.g. 2026-06-30T10:00:00Z)."""
         logger.info(f"AI Tool: Scheduling appointment '{title}' at {date_time_str}")
@@ -158,7 +169,11 @@ async def entrypoint(ctx: JobContext):
 
     agent = Agent(instructions=dynamic_instructions)
     await session.start(agent=agent, room=ctx.room)
-    await ctx.connect()
+    
+    # Wait for WebRTC audio tracks to fully bind before speaking
+    await asyncio.sleep(1)
+    
+    # Agent speaks first — greeting the user immediately on session start
     await session.generate_reply()
     logger.info("SheGuard AI agent session started successfully")
 

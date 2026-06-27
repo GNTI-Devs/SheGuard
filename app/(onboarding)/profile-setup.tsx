@@ -35,6 +35,7 @@ export default function ProfileSetupScreen() {
   const [name, setName] = useState('');
   const [pregnancyMonth, setPregnancyMonth] = useState<number>(3); // Default to month 3
   const [selectedAvatar, setSelectedAvatar] = useState('avatar_1');
+  const [doctorPhone, setDoctorPhone] = useState('');
 
   const handleComplete = async () => {
     if (!name.trim()) {
@@ -58,6 +59,7 @@ export default function ProfileSetupScreen() {
       dueDate: dueDate.toISOString(),
       isDemo: false,
       emergencyContacts: [],
+      doctorPhone: doctorPhone.trim() || undefined,
       createdAt: new Date().toISOString(),
     };
 
@@ -112,6 +114,28 @@ export default function ProfileSetupScreen() {
                 placeholderTextColor={activeColors.textMuted}
                 value={name}
                 onChangeText={setName}
+              />
+            </View>
+
+            {/* Doctor's Phone Input */}
+            <View style={styles.inputContainer}>
+              <Text style={[styles.inputLabel, { color: activeColors.text }]}>
+                Doctor's Phone Number (Optional)
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    color: activeColors.text,
+                    borderColor: activeColors.border,
+                    backgroundColor: activeColors.surface,
+                  },
+                ]}
+                placeholder="+234..."
+                placeholderTextColor={activeColors.textMuted}
+                keyboardType="phone-pad"
+                value={doctorPhone}
+                onChangeText={setDoctorPhone}
               />
             </View>
 

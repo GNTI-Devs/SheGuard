@@ -15,7 +15,7 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Animated,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeContext } from '@/hooks/useThemeContext';
@@ -63,92 +63,137 @@ export function useCustomAlert() {
   const getIcon = () => {
     if (!config) return null;
     switch (config.type) {
-      case 'danger': return <Ionicons name="warning" size={32} color={getAccentColor()} />;
-      case 'warning': return <Ionicons name="alert-circle" size={32} color={getAccentColor()} />;
-      case 'success': return <Ionicons name="checkmark-circle" size={32} color={getAccentColor()} />;
-      default: return <Ionicons name="information-circle" size={32} color={getAccentColor()} />;
+      case 'danger': return <Ionicons name="warning" size={24} color={getAccentColor()} />;
+      case 'warning': return <Ionicons name="alert-circle" size={24} color={getAccentColor()} />;
+      case 'success': return <Ionicons name="checkmark-circle" size={24} color={getAccentColor()} />;
+      default: return <Ionicons name="information-circle" size={24} color={getAccentColor()} />;
     }
   };
 
-  const AlertModal = () => (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      statusBarTranslucent
-      onRequestClose={dismiss}
-    >
-      <View style={styles.overlay}>
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: activeColors.surface,
-              borderColor: getAccentColor() + '40',
-            },
-          ]}
-        >
-          {/* Icon */}
-          <View style={[styles.iconCircle, { backgroundColor: getAccentColor() + '18' }]}>
-            {getIcon()}
-          </View>
+  const AlertModal = () => {
+    if (!config) return null;
+    const buttonsList = config.buttons ?? [{ text: 'OK' }];
+    const shouldStackVertically =
+      buttonsList.length > 2 ||
+      buttonsList.some((btn) => btn.text.length > 18);
 
-          {/* Title */}
-          <Text style={[styles.title, { color: activeColors.text }]}>
-            {config?.title}
-          </Text>
+    return (
+      <Modal
+        visible={visible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={dismiss}
+      >
+        <View style={styles.overlay}>
+          {/* Tap outside to dismiss */}
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            activeOpacity={1}
+            onPress={dismiss}
+          />
 
-          {/* Message */}
-          <Text style={[styles.message, { color: activeColors.textMuted }]}>
-            {config?.message}
-          </Text>
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: activeColors.surface,
+                borderColor: getAccentColor() + '25',
+              },
+            ]}
+          >
+            {/* Close Button top-right */}
+            <TouchableOpacity style={styles.closeBtn} onPress={dismiss} activeOpacity={0.7}>
+              <Ionicons name="close" size={22} color={activeColors.textMuted} />
+            </TouchableOpacity>
 
-          {/* Divider */}
-          <View style={[styles.divider, { backgroundColor: activeColors.border }]} />
+            {/* Header: Icon + Title */}
+            <View style={styles.cardHeader}>
+              <View style={[styles.iconCircle, { backgroundColor: getAccentColor() + '12' }]}>
+                {getIcon()}
+              </View>
+              <View style={styles.headerText}>
+                <Text style={[styles.title, { color: activeColors.text }]}>
+                  {config.title}
+                </Text>
+              </View>
+            </View>
 
-          {/* Buttons */}
-          <View style={styles.buttonsRow}>
-            {(config?.buttons ?? [{ text: 'OK' }]).map((btn, idx) => {
-              const isCancel = btn.style === 'cancel';
-              const isDestructive = btn.style === 'destructive';
-              const btnColor = isDestructive
-                ? activeColors.emergency
-                : isCancel
-                ? activeColors.textMuted
-                : getAccentColor();
+            {/* Message Body */}
+            <Text style={[styles.message, { color: activeColors.textMuted }]}>
+              {config.message}
+            </Text>
 
-              return (
-                <TouchableOpacity
-                  key={idx}
-                  onPress={() => {
-                    dismiss();
-                    btn.onPress?.();
-                  }}
-                  style={[
-                    styles.btn,
-                    idx > 0 && { borderLeftColor: activeColors.border, borderLeftWidth: 1 },
-                  ]}
-                  activeOpacity={0.7}
-                >
-                  <Text
+            {/* Buttons Layout */}
+            <View
+              style={
+                shouldStackVertically
+                  ? styles.buttonsColumn
+                  : styles.buttonsRow
+              }
+            >
+              {buttonsList.map((btn, idx) => {
+                const isCancel = btn.style === 'cancel';
+                const isDestructive = btn.style === 'destructive';
+                
+                // Styling based on button type
+                let btnBg = 'transparent';
+                let btnTextColor = getAccentColor();
+                let borderWidth = 0;
+                let borderColor = 'transparent';
+
+                if (isDestructive) {
+                  btnBg = activeColors.emergency;
+                  btnTextColor = '#FFFFFF';
+                } else if (isCancel) {
+                  btnBg = activeColors.surface2;
+                  btnTextColor = activeColors.textMuted;
+                  borderWidth = 1;
+                  borderColor = activeColors.border;
+                } else {
+                  // Primary action
+                  btnBg = getAccentColor();
+                  btnTextColor = '#FFFFFF';
+                }
+
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => {
+                      dismiss();
+                      btn.onPress?.();
+                    }}
                     style={[
-                      styles.btnText,
+                      shouldStackVertically ? styles.btnVertical : styles.btn,
                       {
-                        color: btnColor,
-                        fontWeight: isCancel ? '500' : 'bold',
-                      },
+                        backgroundColor: btnBg,
+                        borderWidth,
+                        borderColor,
+                      }
                     ]}
+                    activeOpacity={0.85}
                   >
-                    {btn.text}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+                    <Text
+                      style={[
+                        styles.btnText,
+                        {
+                          color: btnTextColor,
+                          fontWeight: isCancel ? '500' : '700',
+                          textAlign: 'center',
+                        },
+                      ]}
+                    >
+                      {btn.text}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
         </View>
-      </View>
-    </Modal>
-  );
+      </Modal>
+    );
+  };
 
   return { showAlert, AlertModal, dismissAlert: dismiss };
 }
@@ -159,51 +204,81 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.65)',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 28,
+    paddingHorizontal: 24,
   },
   card: {
     width: '100%',
     borderRadius: 24,
     borderWidth: 1.5,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 8,
+    position: 'relative',
+  },
+  closeBtn: {
+    position: 'absolute',
+    top: 18,
+    right: 18,
+    padding: 4,
+    zIndex: 10,
+  },
+  cardHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    overflow: 'hidden',
-    paddingTop: 28,
+    marginBottom: 16,
+    gap: 12,
   },
   iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+  },
+  headerText: {
+    flex: 1,
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    textAlign: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 10,
+    lineHeight: 24,
   },
   message: {
     fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
-    paddingHorizontal: 24,
+    lineHeight: 22,
     marginBottom: 24,
   },
-  divider: { width: '100%', height: 1 },
   buttonsRow: {
     flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    width: '100%',
+  },
+  buttonsColumn: {
+    flexDirection: 'column',
+    gap: 10,
     width: '100%',
   },
   btn: {
-    flex: 1,
-    paddingVertical: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 80,
+  },
+  btnVertical: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   btnText: {
-    fontSize: 15,
-    letterSpacing: 0.2,
+    fontSize: 14,
+    letterSpacing: 0.1,
   },
 });

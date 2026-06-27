@@ -92,6 +92,7 @@ export default function HomeScreen() {
     return () => pulse.stop();
   }, [pulseAnim]);
 
+
   // Check-in modal states
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
   const [mood, setMood] = useState<'great' | 'good' | 'tired' | 'unwell' | 'anxious' | null>(null);
@@ -101,6 +102,7 @@ export default function HomeScreen() {
 
   // Voice dictation states
   const [isListening, setIsListening] = useState(false);
+  const [isVoiceSupported, setIsVoiceSupported] = useState(true);
 
   // Background Hospitals Pre-fetcher
   useEffect(() => {
@@ -177,24 +179,32 @@ export default function HomeScreen() {
 
   // Voice recognition lifecycle setup
   useEffect(() => {
-    Voice.onSpeechStart = () => setIsListening(true);
-    Voice.onSpeechEnd = () => setIsListening(false);
-    Voice.onSpeechError = (e) => {
-      console.warn('Voice recognition error:', e);
-      setIsListening(false);
-    };
-    Voice.onSpeechResults = (e) => {
-      if (e.value && e.value.length > 0) {
-        setNotes((prev) => prev + (prev ? ' ' : '') + e.value![0]);
-      }
-    };
+    try {
+      Voice.onSpeechStart = () => setIsListening(true);
+      Voice.onSpeechEnd = () => setIsListening(false);
+      Voice.onSpeechError = (e) => {
+        console.warn('Voice recognition error:', e);
+        setIsListening(false);
+      };
+      Voice.onSpeechResults = (e) => {
+        if (e.value && e.value.length > 0) {
+          setNotes((prev) => prev + (prev ? ' ' : '') + e.value![0]);
+        }
+      };
+    } catch (e) {
+      console.warn('Voice speech recognition not supported on this device/platform:', e);
+      setIsVoiceSupported(false);
+    }
 
     return () => {
-      Voice.destroy().then(Voice.removeAllListeners);
+      try {
+        Voice.destroy().then(Voice.removeAllListeners).catch(() => {});
+      } catch (e) {}
     };
   }, []);
 
   const startSpeechToText = async () => {
+    if (!isVoiceSupported) return;
     try {
       setIsListening(true);
       await Voice.start('en-US');
@@ -704,30 +714,32 @@ These are warning signs that need urgent medical attention. Please speak to SheG
                 <Text style={[styles.modalSectionLabel, { color: activeColors.text }]}>
                   Notes / How you feel:
                 </Text>
-                <TouchableOpacity
-                  onPress={toggleListening}
-                  style={[
-                    styles.voiceInputBtn,
-                    {
-                      backgroundColor: isListening ? activeColors.emergency : activeColors.primary + '15',
-                    },
-                  ]}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons
-                    name={isListening ? 'mic' : 'mic-outline'}
-                    size={16}
-                    color={isListening ? '#FFFFFF' : activeColors.primary}
-                  />
-                  <Text
+                {isVoiceSupported && (
+                  <TouchableOpacity
+                    onPress={toggleListening}
                     style={[
-                      styles.voiceInputBtnText,
-                      { color: isListening ? '#FFFFFF' : activeColors.primary },
+                      styles.voiceInputBtn,
+                      {
+                        backgroundColor: isListening ? activeColors.emergency : activeColors.primary + '15',
+                      },
                     ]}
+                    activeOpacity={0.8}
                   >
-                    {isListening ? 'Listening...' : 'Speak to write'}
-                  </Text>
-                </TouchableOpacity>
+                    <Ionicons
+                      name={isListening ? 'mic' : 'mic-outline'}
+                      size={16}
+                      color={isListening ? '#FFFFFF' : activeColors.primary}
+                    />
+                    <Text
+                      style={[
+                        styles.voiceInputBtnText,
+                        { color: isListening ? '#FFFFFF' : activeColors.primary },
+                      ]}
+                    >
+                      {isListening ? 'Listening...' : 'Speak to write'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               <TextInput

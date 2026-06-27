@@ -63,7 +63,13 @@
 - Compiled the standalone offline-ready Android production release binary `sheguard-production.apk`.
 - Wiped old git history commits to completely purge past MIT license footprints from GitHub, rebasing with the new AGPL-3.0 License.
 - Set up a GitHub Actions CI/CD automation workflow (`build.yml`) to compile APK and iOS simulator app packages with Xcode 16.2.
-
+- Fixed LiveKit Cloud agent silent audio/loopback bug by correcting room connection order in `agent.py` (connecting to the room first before starting the session and resolving user attributes).
+- Overhauled CustomAlert modal with a premium left-aligned layout, tap-outside-to-dismiss behavior, close icon, and dynamic button layout styling (pill buttons for alerts, rectangular rows for lists/checklists).
+- Added `doctorPhone` schema field to `UserProfile` in onboarding profile setup, edit profile settings, and conversation call emergency buttons to call the user's primary doctor directly with family caregiver fallbacks.
+- Resolved uncaught `@react-native-voice/voice` TypeError crashes on startup on devices/emulators lacking speech recognition modules by wrapping initialization in try/catch and dynamically hiding the dictation button when voice is unsupported.
+- Connected the custom `ThemeContext` directly to `@/hooks/useColorScheme` so the selected Light/Dark/System preference immediately propagates to all screens using `useColorScheme`.
+- Fixed LiveKit Cloud deployment tool registration crash by decorating python functions with `@llm.function_tool` to convert them to `FunctionTool` instances.
+- Enabled auto-dispatch routing for named agents by configuring the LiveKit Cloud agent worker to run as a named agent matching the explicit `lk dispatch create` room settings.
 ## In Progress
 
 - Production live validation and testing of the standalone release binary.
