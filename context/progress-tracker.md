@@ -58,15 +58,19 @@
 - Integrated LiveKit python agent tools (`log_symptoms` and `schedule_appointment`) that trigger client-side auto-logging.
 - Fixed duplicate WebP asset resource merge errors and manifest merger appComponentFactory AndroidX/Support library conflicts in Gradle compiler.
 - Created `agent/Dockerfile` for Python agent worker containerization.
-- Compiled the clean Android binary `sheguard-debug.apk` in the artifacts directory.
+- Compiled the clean Android debug APK binary.
+- Cleared static connection tokens in `.env` to enable dynamic production token retrieval.
+- Compiled the standalone offline-ready Android production release binary `sheguard-production.apk`.
+- Wiped old git history commits to completely purge past MIT license footprints from GitHub, rebasing with the new AGPL-3.0 License.
+- Set up a GitHub Actions CI/CD automation workflow (`build.yml`) to compile APK and iOS simulator app packages with Xcode 16.2.
 
 ## In Progress
 
-- Production live validation and cloud deployment of the Dockerized agent worker.
+- Production live validation and testing of the standalone release binary.
 
 ## Next Up
 
-- Deploy python agent to LiveKit Cloud or cloud container registry.
+- Distribute release APK for clinical testing.
 
 ## Open Questions
 
