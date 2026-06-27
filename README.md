@@ -19,6 +19,36 @@
 
 ---
 
+## 📲 Download the App
+
+<p align="center">
+  <a href="https://github.com/GNTI-Devs/SheGuard/releases/latest">
+    <img src="https://img.shields.io/badge/⬇️%20Download%20for%20Android-APK%20(Free)-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Download for Android" height="48" />
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://github.com/GNTI-Devs/SheGuard/releases/latest">
+    <img src="https://img.shields.io/github/release-date/GNTI-Devs/SheGuard?label=Last%20Updated&style=for-the-badge&color=A0405A" alt="Last Updated" height="48" />
+  </a>
+</p>
+
+### 🤖 Android — Install in 3 Steps
+
+> No app store needed. Works on any Android phone running Android 8.0 or higher.
+
+1. **Tap the green button above** — it takes you to the download page
+2. **Tap `SheGuard-Android-latest.apk`** to download the file to your phone
+3. **Open your Files app**, find the downloaded file, tap it, and tap **Install**
+
+> ⚠️ Your phone may ask *"Allow install from unknown sources"* — this is normal for apps not on the Play Store. Tap **Allow**, then **Install**.
+
+### 🍎 iOS — Coming Soon
+
+iOS distribution is currently not available via a direct download link. If you have a Mac with Xcode, you can [build from source](#-getting-started).
+
+---
+
+
+
 ## 📖 About the Project
 
 **SheGuard AI** is an open-source, offline-capable mobile health companion and real-time voice assistant built specifically for expectant mothers in Nigeria, with a focus on underserved and rural communities.

@@ -1,0 +1,86 @@
+name: Publish Release APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # Required to create/update releases and upload assets
+
+jobs:
+  release-android:
+    name: Build & Publish Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build Android Release APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Find APK
+        id: find_apk
+        run: |
+          APK=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          echo "path=$APK" >> $GITHUB_OUTPUT
+          echo "Found APK: $APK"
+
+      - name: Rename APK to friendly name
+        run: |
+          cp "${{ steps.find_apk.outputs.path }}" SheGuard-Android-latest.apk
+
+      - name: Delete existing latest release (if any)
+        run: |
+          gh release delete latest --yes || true
+          git push origin :refs/tags/latest || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "SheGuard AI — Latest Build"
+          prerelease: true
+          body: |
+            ## 📲 Download SheGuard AI
+
+            > **This is the latest automated build** from the `main` branch.
+
+            ### Android
+            Download the **SheGuard-Android-latest.apk** file below.
+
+            **How to install:**
+            1. Download the `.apk` file to your Android phone
+            2. Open your phone's **Files** app and find the downloaded file
+            3. Tap it — if prompted, allow installation from unknown sources
+            4. Tap **Install** and you're done! 🎉
+
+            ### iOS
+            iOS builds are not yet available for direct download.
+            If you have a Mac and Xcode installed, you can build from source — see the [README](https://github.com/GNTI-Devs/SheGuard#-getting-started).
+
+            ---
+            *Built automatically from commit `${{ github.sha }}` on `${{ github.ref_name }}`*
+          files: SheGuard-Android-latest.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
