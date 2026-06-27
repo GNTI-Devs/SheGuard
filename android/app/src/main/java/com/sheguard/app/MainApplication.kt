@@ -1,4 +1,4 @@
-package io.livekit.voiceassistantreactnative
+package com.sheguard.app
 
 import android.app.Application
 import android.content.res.Configuration

@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -164,6 +165,7 @@ export default function HospitalsScreen() {
   } | null>(null);
   const [nearbyAreas, setNearbyAreas] = useState<string[]>([]);
   const [activeArea, setActiveArea] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const postToWebView = (payload: object) => {
     if (webViewRef.current) {
@@ -452,16 +454,30 @@ export default function HospitalsScreen() {
     } catch (_) {}
   };
 
-  // Filter displayed list by active area pill
-  const displayedHospitals = activeArea
-    ? hospitals.filter(
-        (h) =>
-          h.tags['addr:suburb'] === activeArea ||
-          h.tags['addr:neighbourhood'] === activeArea ||
-          h.tags['addr:quarter'] === activeArea ||
-          h.tags['addr:city'] === activeArea
-      )
-    : hospitals;
+  // Filter displayed list by active area pill & search query
+  const displayedHospitals = hospitals.filter((h) => {
+    // 1. Area filter
+    if (activeArea) {
+      const matchArea =
+        h.tags['addr:suburb'] === activeArea ||
+        h.tags['addr:neighbourhood'] === activeArea ||
+        h.tags['addr:quarter'] === activeArea ||
+        h.tags['addr:city'] === activeArea;
+      if (!matchArea) return false;
+    }
+
+    // 2. Search query filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const matchName = h.name?.toLowerCase().includes(q);
+      const matchAddr = h.address?.toLowerCase().includes(q);
+      const matchCity = h.tags['addr:city']?.toLowerCase().includes(q);
+      const matchSuburb = h.tags['addr:suburb']?.toLowerCase().includes(q);
+      return matchName || matchAddr || matchCity || matchSuburb;
+    }
+
+    return true;
+  });
 
   const mapHtml = `
     <!DOCTYPE html>
@@ -602,6 +618,33 @@ export default function HospitalsScreen() {
             color={loading ? activeColors.textMuted : activeColors.primary}
           />
         </TouchableOpacity>
+      </View>
+
+      {/* Search Bar */}
+      <View
+        style={[
+          styles.searchBarContainer,
+          {
+            backgroundColor: activeColors.surface,
+            borderColor: activeColors.border,
+          },
+        ]}
+      >
+        <Ionicons name="search" size={18} color={activeColors.textMuted} />
+        <TextInput
+          placeholder="Search clinics or hospitals..."
+          placeholderTextColor={activeColors.textMuted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          style={[styles.searchInput, { color: activeColors.text }]}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Ionicons name="close-circle" size={18} color={activeColors.textMuted} />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Map */}
@@ -854,6 +897,22 @@ export default function HospitalsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 10,
+    paddingHorizontal: 12,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: 8,
+    marginLeft: 8,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
