@@ -32,7 +32,7 @@ export function useAudioPlayer() {
     Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
       playsInSilentModeIOS: true,
-      shouldRouteThroughEarpieceAndroid: false,
+      playThroughEarpieceAndroid: false,
       staysActiveInBackground: false,
     }).catch((err: any) =>
       console.warn('[useAudioPlayer] setAudioModeAsync error:', err)
