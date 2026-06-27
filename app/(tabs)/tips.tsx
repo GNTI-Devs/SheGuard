@@ -22,7 +22,7 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-interface TipItem {
+export interface TipItem {
   id: string;
   title: string;
   month: number;
@@ -32,7 +32,7 @@ interface TipItem {
   category: 'nutrition' | 'body' | 'mental' | 'danger' | 'anc' | 'exercise' | 'prep';
 }
 
-const TIPS: TipItem[] = [
+export const TIPS: TipItem[] = [
   // ── Month 1 ──────────────────────────────────────────────────────────────
   { id: 'm1-1', title: 'Start Folic Acid Now', month: 1, icon: '💊', dangerLevel: 'none', category: 'nutrition',
     content: 'Begin 400–800 mcg of folic acid daily. It protects the baby\'s brain and spinal cord from neural tube defects during the first critical weeks.' },
@@ -174,8 +174,15 @@ export default function TipsScreen() {
   const { profile } = useUserProfile();
   const currentMonth = profile?.pregnancyMonth ?? 1;
 
-  const [expandedMonthId, setExpandedMonthId] = useState<number | null>(currentMonth);
+  const [expandedMonthId, setExpandedMonthId] = useState<number | null>(null);
   const [expandedTipId, setExpandedTipId] = useState<string | null>(null);
+
+  // Sync expandedMonthId to user's current pregnancy month once the profile loads
+  React.useEffect(() => {
+    if (profile?.pregnancyMonth) {
+      setExpandedMonthId(profile.pregnancyMonth);
+    }
+  }, [profile?.pregnancyMonth]);
 
   const handleToggleMonth = (month: number) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);

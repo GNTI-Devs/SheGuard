@@ -90,12 +90,18 @@ async def entrypoint(ctx: JobContext):
     logger.info("Connected to room successfully")
 
     # Resolve initial user language from participant attributes or metadata fallback
+    # Wait up to 3 seconds for the remote participant to be visible in the room
     user_lang = "en"
     user_participant = None
     
-    for p in ctx.room.remote_participants.values():
-        user_participant = p
-        break
+    for _ in range(30):
+        if ctx.room.remote_participants:
+            for p in ctx.room.remote_participants.values():
+                user_participant = p
+                break
+            if user_participant:
+                break
+        await asyncio.sleep(0.1)
         
     if user_participant:
         lang = user_participant.attributes.get("language")
@@ -104,8 +110,8 @@ async def entrypoint(ctx: JobContext):
                 import json
                 meta = json.loads(user_participant.metadata)
                 lang = meta.get("language")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to parse participant metadata: {e}")
         if lang:
             user_lang = lang
 

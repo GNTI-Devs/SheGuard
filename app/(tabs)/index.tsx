@@ -23,6 +23,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStorage, DailyCheckIn } from '@/services/storage';
 import Voice from '@react-native-voice/voice';
 import { useCustomAlert } from '@/components/CustomAlert';
+import { TIPS } from './tips';
 
 const MOODS = [
   { id: 'great', emoji: '😊', label: 'Great' },
@@ -78,6 +79,13 @@ export default function HomeScreen() {
   const { colorScheme } = useThemeContext();
   const activeColors = Colors[colorScheme];
   const { showAlert, AlertModal } = useCustomAlert();
+
+  // Dynamically select a tip based on pregnancy month and current day of the month
+  const monthVal = profile?.pregnancyMonth || 6;
+  const monthTips = TIPS.filter((t) => t.month === monthVal);
+  const availableTips = monthTips.length > 0 ? monthTips : TIPS;
+  const dateDay = new Date().getDate();
+  const dailyTip = availableTips[dateDay % availableTips.length];
 
   // Pulsing animation for check-in card
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -500,13 +508,17 @@ These are warning signs that need urgent medical attention. Please speak to SheG
                 color={activeColors.primary}
               />
               <Text style={[styles.cardTitle, { color: activeColors.text }]}>
-                Today's Tip
+                Daily Tip {dailyTip.icon}
               </Text>
             </View>
-            <Text style={[styles.cardContent, { color: activeColors.textMuted }]}>
-              Drink at least 8-10 cups of clean water daily to stay hydrated and
-              prevent infections.
-            </Text>
+            <View style={{ flex: 1, justifyContent: 'flex-start' }}>
+              <Text style={[styles.cardContent, { color: activeColors.text, fontWeight: 'bold' }]} numberOfLines={1}>
+                {dailyTip.title}
+              </Text>
+              <Text style={[styles.cardContent, { color: activeColors.textMuted, marginTop: 2, fontSize: 10, lineHeight: 14 }]} numberOfLines={4}>
+                {dailyTip.content}
+              </Text>
+            </View>
           </View>
 
           {/* Next Visit */}
