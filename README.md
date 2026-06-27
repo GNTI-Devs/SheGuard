@@ -42,7 +42,7 @@ This application was conceived, designed, and built as a **hackathon project** b
 |---|---|
 | **Ummulkhair Logun** | Co-Lead / Product & AI Strategy |
 | **Katrina Emegbagha** | Co-Lead / UX, Design & Community Research |
-| **GNTI Developers Team** | Technical Development & Engineering Assistance |
+| **Volunteer assistants from GNTI** | Technical Development & Engineering Support |
 
 > _"We built SheGuard because we believe every mother deserves a knowledgeable companion by her side — regardless of where she lives, what language she speaks, or how much she earns."_
 
