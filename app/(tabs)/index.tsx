@@ -9,11 +9,12 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
-  Alert,
+  Animated,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { useThemeContext } from '@/hooks/useThemeContext';
 import { Colors } from '@/constants/Colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +22,7 @@ import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStorage, DailyCheckIn } from '@/services/storage';
 import Voice from '@react-native-voice/voice';
+import { useCustomAlert } from '@/components/CustomAlert';
 
 const MOODS = [
   { id: 'great', emoji: '😊', label: 'Great' },
@@ -30,22 +32,65 @@ const MOODS = [
   { id: 'anxious', emoji: '🥺', label: 'Anxious' },
 ];
 
-const SYMPTOMS = [
-  { id: 'nausea', label: '🤢 Nausea / Vomiting', warning: false },
-  { id: 'headache', label: '🤕 Severe Headache', warning: true },
-  { id: 'swelling', label: '🦵 Swollen Face/Hands/Feet', warning: true },
-  { id: 'vision', label: '👁️ Blurred Vision / Spots', warning: true },
-  { id: 'cramps', label: '⚡ Severe Abdominal Pain', warning: true },
-  { id: 'fatigue', label: '🥱 Extreme Fatigue', warning: false },
-  { id: 'movement', label: '👶 Reduced Baby Movement', warning: true },
+// Symptom categories
+const SYMPTOM_SECTIONS = [
+  {
+    section: '⚠️ Danger Signs — Seek Help Now',
+    isDanger: true,
+    symptoms: [
+      { id: 'headache', label: '🤕 Severe or Persistent Headache', warning: true },
+      { id: 'swelling', label: '🦵 Sudden Swelling: Face, Hands or Feet', warning: true },
+      { id: 'vision', label: '👁️ Blurred Vision or Seeing Spots', warning: true },
+      { id: 'cramps', label: '⚡ Severe Abdominal Pain or Cramps', warning: true },
+      { id: 'movement', label: '👶 Reduced or No Baby Movement (6+ hrs)', warning: true },
+      { id: 'bleeding', label: '🩸 Vaginal Bleeding (any amount)', warning: true },
+      { id: 'fever', label: '🌡️ High Fever (feels very hot, chills)', warning: true },
+      { id: 'breathing', label: '🫁 Sudden Difficulty Breathing', warning: true },
+      { id: 'contractions', label: '🔔 Regular Contractions Before Week 37', warning: true },
+      { id: 'water', label: '💧 Water Breaking / Fluid Leaking', warning: true },
+    ],
+  },
+  {
+    section: '📋 Common Discomforts (Log These Too)',
+    isDanger: false,
+    symptoms: [
+      { id: 'nausea', label: '🤢 Nausea or Vomiting', warning: false },
+      { id: 'fatigue', label: '🥱 Extreme Tiredness / Fatigue', warning: false },
+      { id: 'heartburn', label: '🔥 Heartburn or Indigestion', warning: false },
+      { id: 'backpain', label: '🪑 Lower Back Pain', warning: false },
+      { id: 'legcramps', label: '🦿 Leg Cramps', warning: false },
+      { id: 'dizziness', label: '😵 Dizziness or Lightheadedness', warning: false },
+      { id: 'constipation', label: '🚽 Constipation', warning: false },
+      { id: 'itching', label: '🖐️ Itchy Skin (especially palms/feet)', warning: false },
+      { id: 'anxiety', label: '🧠 Anxiety / Persistent Sadness / Feeling Low', warning: false },
+      { id: 'insomnia', label: '🌙 Difficulty Sleeping', warning: false },
+    ],
+  },
 ];
+
+// Flat list for backward compatibility
+const SYMPTOMS = SYMPTOM_SECTIONS.flatMap((s) => s.symptoms);
 
 export default function HomeScreen() {
   const router = useRouter();
   const storage = useStorage();
   const { profile } = useUserProfile();
-  const colorScheme = useColorScheme();
-  const activeColors = Colors[colorScheme ?? 'light'];
+  const { colorScheme } = useThemeContext();
+  const activeColors = Colors[colorScheme];
+  const { showAlert, AlertModal } = useCustomAlert();
+
+  // Pulsing animation for check-in card
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.025, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [pulseAnim]);
 
   // Check-in modal states
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
@@ -207,9 +252,15 @@ export default function HomeScreen() {
     return matched?.warning === true;
   });
 
+  const getDangerSymptomNames = () =>
+    selectedSymptoms
+      .filter((sId) => SYMPTOMS.find((s) => s.id === sId)?.warning)
+      .map((sId) => SYMPTOMS.find((s) => s.id === sId)?.label.replace(/^[^a-zA-Z]+/, '').trim())
+      .join(', ');
+
   const handleSaveCheckIn = async () => {
     if (!mood) {
-      Alert.alert('Mood required', 'Please select how you are feeling.');
+      showAlert({ title: 'Mood Required', message: 'Please select how you are feeling before saving.', type: 'info', buttons: [{ text: 'OK' }] });
       return;
     }
 
@@ -226,18 +277,26 @@ export default function HomeScreen() {
 
       await storage.saveDailyCheckIn(logEntry);
 
-      // Alert danger triggers if critical symptoms are checked
       if (hasDangerSigns) {
-        Alert.alert(
-          '⚠️ Critical Warning',
-          'You selected symptoms associated with preeclampsia danger signs (severe headache, face/feet swelling, blurred vision). We strongly advise joining an AI voice consultation or visiting the nearest hospital immediately.',
-          [
-            { text: 'Okay', style: 'default' },
-            { text: 'Consult AI', style: 'default', onPress: handleStartConversation }
-          ]
-        );
+        const names = getDangerSymptomNames();
+        showAlert({
+          title: '🚨 Pregnancy Danger Signs',
+          message: `You reported: ${names}.
+
+These are warning signs that need urgent medical attention. Please speak to SheGuard AI now or go to the nearest hospital immediately.`,
+          type: 'danger',
+          buttons: [
+            { text: 'Dismiss', style: 'cancel' },
+            { text: '🎙️ Talk to AI', onPress: handleStartConversation },
+          ],
+        });
       } else {
-        Alert.alert('Check-in Saved', 'Your daily logs are registered in your health journal.');
+        showAlert({
+          title: 'Check-in Saved ✅',
+          message: 'Your daily health log has been recorded in your health journal.',
+          type: 'success',
+          buttons: [{ text: 'Great!' }],
+        });
       }
 
       // Reset
@@ -246,7 +305,7 @@ export default function HomeScreen() {
       setNotes('');
       setIsCheckInOpen(false);
     } catch (err) {
-      Alert.alert('Error', 'Failed to register check-in.');
+      showAlert({ title: 'Error', message: 'Failed to register check-in. Please try again.', type: 'danger', buttons: [{ text: 'OK' }] });
     } finally {
       setSaving(false);
     }
@@ -343,32 +402,39 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Daily Check-in Card */}
-        <TouchableOpacity
-          onPress={() => setIsCheckInOpen(true)}
-          style={[
-            styles.checkInCard,
-            {
-              backgroundColor: activeColors.surface,
-              borderColor: activeColors.primary,
-            },
-          ]}
-          activeOpacity={0.8}
-        >
-          <View style={styles.checkInContentRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.checkInTitle, { color: activeColors.primary }]}>
-                How are you feeling today?
-              </Text>
-              <Text style={[styles.checkInSubtitle, { color: activeColors.textMuted }]}>
-                Daily symptom log check-in • Tap to register notes and mood.
-              </Text>
+        {/* Daily Check-in Card — pulsing to signal it's tappable */}
+        <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+          <TouchableOpacity
+            onPress={() => setIsCheckInOpen(true)}
+            style={[
+              styles.checkInCard,
+              {
+                backgroundColor: activeColors.surface,
+                borderColor: activeColors.primary,
+                shadowColor: activeColors.primary,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.35,
+                shadowRadius: 12,
+                elevation: 8,
+              },
+            ]}
+            activeOpacity={0.85}
+          >
+            <View style={styles.checkInContentRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.checkInTitle, { color: activeColors.primary }]}>
+                  How are you feeling today?
+                </Text>
+                <Text style={[styles.checkInSubtitle, { color: activeColors.textMuted }]}>
+                  Tap here to log your daily symptoms and mood 👆
+                </Text>
+              </View>
+              <View style={[styles.checkInIconCircle, { backgroundColor: activeColors.primary }]}>
+                <Ionicons name="heart" size={22} color="#FFFFFF" />
+              </View>
             </View>
-            <View style={[styles.checkInIconCircle, { backgroundColor: activeColors.primary }]}>
-              <Ionicons name="heart" size={22} color="#FFFFFF" />
-            </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </Animated.View>
 
         {/* Voice Orb Area */}
         <View style={styles.orbSection}>
@@ -463,7 +529,30 @@ export default function HomeScreen() {
         {/* Emergency SOS Button */}
         <TouchableOpacity
           onPress={() => {
-            router.push('/conversation?triggerEmergency=true');
+            showAlert({
+              title: '🚨 Emergency SOS',
+              message: 'What is happening right now? Select the closest description.',
+              type: 'danger',
+              buttons: [
+                {
+                  text: '🩸 Severe pain / bleeding / no baby movement',
+                  onPress: () => router.push('/conversation?triggerEmergency=true&concern=danger'),
+                },
+                {
+                  text: '🌡️ High fever / difficulty breathing',
+                  onPress: () => router.push('/conversation?triggerEmergency=true&concern=fever'),
+                },
+                {
+                  text: '🔔 Labour contractions / water broke',
+                  onPress: () => router.push('/conversation?triggerEmergency=true&concern=labour'),
+                },
+                {
+                  text: '📞 Call 112 Emergency Services',
+                  style: 'destructive',
+                  onPress: () => Linking.openURL('tel:112'),
+                },
+              ],
+            });
           }}
           style={[
             styles.sosButton,
@@ -471,13 +560,8 @@ export default function HomeScreen() {
           ]}
           activeOpacity={0.9}
         >
-          <Ionicons
-            name="warning"
-            size={22}
-            color="#FFFFFF"
-            style={styles.sosIcon}
-          />
-          <Text style={styles.sosButtonText}>EMERGENCY SOS SHORTCUT</Text>
+          <Ionicons name="warning" size={22} color="#FFFFFF" style={styles.sosIcon} />
+          <Text style={styles.sosButtonText}>🚨 EMERGENCY SOS</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -542,37 +626,63 @@ export default function HomeScreen() {
                 })}
               </View>
 
-              {/* Symptoms Checklist */}
-              <Text style={[styles.modalSectionLabel, { color: activeColors.text }]}>
-                Select symptoms (if any):
-              </Text>
-              <View style={styles.symptomsContainer}>
-                {SYMPTOMS.map((sym) => {
-                  const isChecked = selectedSymptoms.includes(sym.id);
-                  return (
-                    <TouchableOpacity
-                      key={sym.id}
-                      onPress={() => toggleSymptom(sym.id)}
-                      style={[
-                        styles.symptomRow,
-                        {
-                          backgroundColor: isChecked ? activeColors.surface2 : 'transparent',
-                          borderColor: isChecked ? activeColors.primary : activeColors.border,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.symptomLabel, { color: activeColors.text }]}>
-                        {sym.label}
-                      </Text>
-                      <Ionicons
-                        name={isChecked ? 'checkbox' : 'square-outline'}
-                        size={20}
-                        color={isChecked ? activeColors.primary : activeColors.textMuted}
-                      />
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              {/* Symptoms Checklist — sectioned */}
+              {SYMPTOM_SECTIONS.map((section) => (
+                <View key={section.section}>
+                  <Text
+                    style={[
+                      styles.modalSectionLabel,
+                      {
+                        color: section.isDanger ? activeColors.emergency : activeColors.text,
+                        marginTop: 4,
+                      },
+                    ]}
+                  >
+                    {section.section}
+                  </Text>
+                  <View style={styles.symptomsContainer}>
+                    {section.symptoms.map((sym) => {
+                      const isChecked = selectedSymptoms.includes(sym.id);
+                      return (
+                        <TouchableOpacity
+                          key={sym.id}
+                          onPress={() => toggleSymptom(sym.id)}
+                          style={[
+                            styles.symptomRow,
+                            {
+                              backgroundColor: isChecked
+                                ? sym.warning
+                                  ? activeColors.emergency + '12'
+                                  : activeColors.surface2
+                                : 'transparent',
+                              borderColor: isChecked
+                                ? sym.warning
+                                  ? activeColors.emergency
+                                  : activeColors.primary
+                                : activeColors.border,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.symptomLabel, { color: activeColors.text }]}>
+                            {sym.label}
+                          </Text>
+                          <Ionicons
+                            name={isChecked ? 'checkbox' : 'square-outline'}
+                            size={20}
+                            color={
+                              isChecked
+                                ? sym.warning
+                                  ? activeColors.emergency
+                                  : activeColors.primary
+                                : activeColors.textMuted
+                            }
+                          />
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
 
               {/* Danger Warning Alert Badge */}
               {hasDangerSigns && (
@@ -584,7 +694,7 @@ export default function HomeScreen() {
                 >
                   <Ionicons name="warning" size={20} color={activeColors.emergency} />
                   <Text style={[styles.dangerBadgeText, { color: activeColors.emergency }]}>
-                    Warning: Some selected symptoms are preeclampsia danger signs. We strongly advise speaking to SheGuard AI or visiting a health center immediately.
+                    🚨 You have selected pregnancy danger signs. Do not wait — speak to SheGuard AI now or go to the nearest hospital or maternity clinic immediately.
                   </Text>
                 </View>
               )}
@@ -653,6 +763,7 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+      <AlertModal />
     </SafeAreaView>
   );
 }

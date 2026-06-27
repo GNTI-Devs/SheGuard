@@ -1,13 +1,20 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useThemeContext } from '@/hooks/useThemeContext';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const activeColors = Colors[colorScheme ?? 'light'];
+  const { colorScheme } = useThemeContext();
+  const activeColors = Colors[colorScheme];
+  const insets = useSafeAreaInsets();
+
+  // On Android with gesture navigation, insets.bottom gives us the system bar height.
+  // We add 8px of extra breathing room above the nav labels.
+  const tabBarBottomPadding = Platform.OS === 'ios' ? 30 : Math.max(insets.bottom, 8);
+  const tabBarHeight = Platform.OS === 'ios' ? 88 : 56 + tabBarBottomPadding;
 
   return (
     <Tabs
@@ -18,8 +25,8 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: activeColors.surface,
           borderTopColor: activeColors.border,
-          height: Platform.OS === 'ios' ? 88 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 30 : 10,
+          height: tabBarHeight,
+          paddingBottom: tabBarBottomPadding,
           paddingTop: 10,
           elevation: 4,
           shadowColor: '#000',

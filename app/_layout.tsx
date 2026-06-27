@@ -13,12 +13,13 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { ConnectionProvider } from '@/hooks/useConnection';
 import { StorageProvider, useStorage } from '@/services/storage';
 import { Colors } from '@/constants/Colors';
+import { ThemeProvider as AppThemeProvider, useThemeContext } from '@/hooks/useThemeContext';
 
 function RouteGuard() {
   const { getProfile } = useStorage();
   const router = useRouter();
   const segments = useSegments();
-  const colorScheme = useColorScheme();
+  const { colorScheme } = useThemeContext();
   const [loading, setLoading] = useState(true);
 
   const activeColors = Colors[colorScheme ?? 'light'];
@@ -79,7 +80,7 @@ function RouteGuard() {
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const { colorScheme } = useThemeContext();
 
   const customNavigationTheme = {
     ...(colorScheme === 'dark' ? DarkTheme : DefaultTheme),
@@ -93,13 +94,15 @@ export default function RootLayout() {
   };
 
   return (
-    <StorageProvider>
-      <ConnectionProvider>
-        <ThemeProvider value={customNavigationTheme}>
-          <RouteGuard />
-          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        </ThemeProvider>
-      </ConnectionProvider>
-    </StorageProvider>
+    <AppThemeProvider>
+      <StorageProvider>
+        <ConnectionProvider>
+          <ThemeProvider value={customNavigationTheme}>
+            <RouteGuard />
+            <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+          </ThemeProvider>
+        </ConnectionProvider>
+      </StorageProvider>
+    </AppThemeProvider>
   );
 }

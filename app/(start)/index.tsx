@@ -33,7 +33,7 @@ export default function StartScreen() {
     <View style={styles.container}>
       <Image
         style={styles.logo}
-        source={require('../../assets/images/start-logo.png')}
+        source={require('../../assets/images/icon.png')}
       />
       <Text style={styles.text}>Chat live with your voice AI agent</Text>
 

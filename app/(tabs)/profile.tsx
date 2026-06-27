@@ -7,53 +7,52 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useLanguage, LANGUAGES, LanguageCode } from '@/hooks/useLanguage';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { useThemeContext } from '@/hooks/useThemeContext';
 import { Colors } from '@/constants/Colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useCustomAlert } from '@/components/CustomAlert';
 
 export default function ProfileScreen() {
   const { profile, saveProfile, clearProfile } = useUserProfile();
   const { language, setLanguage } = useLanguage();
-  const colorScheme = useColorScheme();
-  const activeColors = Colors[colorScheme ?? 'light'];
+  const { colorScheme, themePreference, setThemePreference } = useThemeContext();
+  const activeColors = Colors[colorScheme];
+  const router = useRouter();
+  const { showAlert, AlertModal } = useCustomAlert();
 
   const [newContact, setNewContact] = useState('');
   const [isEditingLang, setIsEditingLang] = useState(false);
 
   const handleAddContact = async () => {
     if (!newContact.trim() || !profile) return;
-
     const updatedContacts = [
       ...(profile.emergencyContacts || []),
       newContact.trim(),
     ];
     const updatedProfile = { ...profile, emergencyContacts: updatedContacts };
-
     try {
       await saveProfile(updatedProfile);
       setNewContact('');
     } catch (e) {
-      alert('Failed to add contact');
+      showAlert({ title: 'Error', message: 'Failed to add contact.', type: 'danger', buttons: [{ text: 'OK' }] });
     }
   };
 
   const handleRemoveContact = async (index: number) => {
     if (!profile) return;
-
     const updatedContacts = (profile.emergencyContacts || []).filter(
       (_, i) => i !== index
     );
     const updatedProfile = { ...profile, emergencyContacts: updatedContacts };
-
     try {
       await saveProfile(updatedProfile);
     } catch (e) {
-      alert('Failed to remove contact');
+      showAlert({ title: 'Error', message: 'Failed to remove contact.', type: 'danger', buttons: [{ text: 'OK' }] });
     }
   };
 
@@ -63,14 +62,22 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Sign Out / Reset',
-      'Are you sure you want to sign out? This will clear your offline profile details.',
-      [
+    showAlert({
+      title: 'Sign Out & Reset',
+      message: 'Are you sure you want to sign out? This will clear your offline profile details and return you to the welcome screen.',
+      type: 'warning',
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Reset Profile', style: 'destructive', onPress: clearProfile },
-      ]
-    );
+        {
+          text: 'Yes, Reset',
+          style: 'destructive',
+          onPress: async () => {
+            await clearProfile();
+            router.replace('/(onboarding)/language-select');
+          },
+        },
+      ],
+    });
   };
 
   if (!profile) {
@@ -295,6 +302,45 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Theme Toggle */}
+        <View
+          style={[
+            styles.section,
+            { backgroundColor: activeColors.surface, borderColor: activeColors.border },
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <Ionicons name="contrast-outline" size={20} color={activeColors.primary} />
+            <Text style={[styles.sectionTitle, { color: activeColors.text }]}>Appearance</Text>
+          </View>
+          <Text style={[styles.sectionHint, { color: activeColors.textMuted }]}>
+            Choose your preferred display mode.
+          </Text>
+          <View style={styles.themeRow}>
+            {(['light', 'dark', 'system'] as const).map((pref) => {
+              const isActive = themePreference === pref;
+              const label = pref === 'light' ? '☀️ Light' : pref === 'dark' ? '🌙 Dark' : '📱 System';
+              return (
+                <TouchableOpacity
+                  key={pref}
+                  onPress={() => setThemePreference(pref)}
+                  style={[
+                    styles.themeOption,
+                    {
+                      backgroundColor: isActive ? activeColors.primary : activeColors.surface2,
+                      borderColor: isActive ? activeColors.primary : activeColors.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.themeOptionText, { color: isActive ? '#FFFFFF' : activeColors.text }]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
         {/* Settings Area */}
         <View style={styles.logoutWrapper}>
           <TouchableOpacity
@@ -321,6 +367,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <AlertModal />
     </SafeAreaView>
   );
 }
@@ -465,6 +512,22 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  themeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  themeOption: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  themeOptionText: {
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   logoutWrapper: {
     alignItems: 'center',
