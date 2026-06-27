@@ -492,14 +492,23 @@ These are warning signs that need urgent medical attention. Please speak to SheG
         {/* Quick Info Grid */}
         <View style={styles.grid}>
           {/* Today's Tip */}
-          <View
+          <TouchableOpacity
+            onPress={() => {
+              showAlert({
+                title: `${dailyTip.icon} ${dailyTip.title}`,
+                message: dailyTip.content,
+                type: dailyTip.dangerLevel === 'high' ? 'danger' : 'success',
+                buttons: [{ text: 'Got it!' }],
+              });
+            }}
             style={[
               styles.gridCard,
               {
                 backgroundColor: activeColors.surface,
-                borderColor: activeColors.border,
+                borderColor: dailyTip.dangerLevel === 'high' ? activeColors.emergency : activeColors.border,
               },
             ]}
+            activeOpacity={0.8}
           >
             <View style={styles.cardHeader}>
               <Ionicons
@@ -519,7 +528,7 @@ These are warning signs that need urgent medical attention. Please speak to SheG
                 {dailyTip.content}
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
 
           {/* Next Visit */}
           <View
