@@ -1,4 +1,8 @@
-# SheGuard AI
+<p align="center">
+  <img src="./assets/images/icon.png" alt="SheGuard Logo" width="160" height="160" style="border-radius: 32px;" />
+</p>
+
+<h1 align="center">SheGuard AI</h1>
 
 **A Multilingual Voice-First Maternal Health Companion for Expectant Mothers**
 
