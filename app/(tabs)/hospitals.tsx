@@ -33,7 +33,12 @@ interface Hospital {
 }
 
 /** Haversine formula: returns distance in km between two lat/lng points */
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+function haversineKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
@@ -78,13 +83,17 @@ function buildFeatures(tags: Record<string, string>): string[] {
   if (tags.amenity === 'hospital') features.push('Hospital');
   else features.push('Clinic');
 
-  if (tags['healthcare:speciality']?.toLowerCase().includes('obstetrics') ||
-      tags['healthcare:speciality']?.toLowerCase().includes('gynaecology') ||
-      tags['healthcare:speciality']?.toLowerCase().includes('maternity')) {
+  if (
+    tags['healthcare:speciality']?.toLowerCase().includes('obstetrics') ||
+    tags['healthcare:speciality']?.toLowerCase().includes('gynaecology') ||
+    tags['healthcare:speciality']?.toLowerCase().includes('maternity')
+  ) {
     features.push('Maternity Unit');
   }
-  if (tags['healthcare:speciality']?.toLowerCase().includes('paediatric') ||
-      tags['healthcare:speciality']?.toLowerCase().includes('pediatric')) {
+  if (
+    tags['healthcare:speciality']?.toLowerCase().includes('paediatric') ||
+    tags['healthcare:speciality']?.toLowerCase().includes('pediatric')
+  ) {
     features.push('Paediatrics');
   }
   if (tags['emergency'] === 'yes') features.push('Emergency');
@@ -145,9 +154,14 @@ export default function HospitalsScreen() {
   const pendingCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
-  const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null);
+  const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(
+    null
+  );
   const [loading, setLoading] = useState<boolean>(true);
-  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [userCoords, setUserCoords] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
   const [nearbyAreas, setNearbyAreas] = useState<string[]>([]);
   const [activeArea, setActiveArea] = useState<string | null>(null);
 
@@ -176,13 +190,13 @@ export default function HospitalsScreen() {
         .map((el) => {
           const tags: Record<string, string> = el.tags || {};
           const name =
-            tags.name || tags['name:en'] || tags['official_name'] || 'Medical Facility';
+            tags.name ||
+            tags['name:en'] ||
+            tags['official_name'] ||
+            'Medical Facility';
           const address = buildAddress(tags);
           const phone =
-            tags.phone ||
-            tags['contact:phone'] ||
-            tags['telephone'] ||
-            '';
+            tags.phone || tags['contact:phone'] || tags['telephone'] || '';
           const website = tags.website || tags['contact:website'] || '';
           const openingHours = tags['opening_hours'] || '';
           const distanceKm = haversineKm(lat, lng, el.lat, el.lon);
@@ -227,18 +241,31 @@ export default function HospitalsScreen() {
           const cachedDataRaw = await AsyncStorage.getItem(CACHE_KEY_HOSPITALS);
           if (cachedCoordsRaw && cachedDataRaw) {
             const cachedCoords = JSON.parse(cachedCoordsRaw);
-            const dist = haversineKm(lat, lng, cachedCoords.lat, cachedCoords.lng);
+            const dist = haversineKm(
+              lat,
+              lng,
+              cachedCoords.lat,
+              cachedCoords.lng
+            );
             if (dist <= CACHE_DISTANCE_THRESHOLD_KM) {
               const cached = JSON.parse(cachedDataRaw);
               if (Array.isArray(cached) && cached.length > 0) {
-                console.log(`[Hospitals] Cache hit (${dist.toFixed(2)}km). Using ${cached.length} cached clinics.`);
+                console.log(
+                  `[Hospitals] Cache hit (${dist.toFixed(2)}km). Using ${
+                    cached.length
+                  } cached clinics.`
+                );
                 // Re-sort by new current position
                 const resorted = cached
                   .map((h: Hospital) => ({
                     ...h,
-                    distanceKm: Math.round(haversineKm(lat, lng, h.lat, h.lng) * 10) / 10,
+                    distanceKm:
+                      Math.round(haversineKm(lat, lng, h.lat, h.lng) * 10) / 10,
                   }))
-                  .sort((a: Hospital, b: Hospital) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
+                  .sort(
+                    (a: Hospital, b: Hospital) =>
+                      (a.distanceKm ?? 999) - (b.distanceKm ?? 999)
+                  );
                 setHospitals(resorted);
                 setNearbyAreas(extractNearbyAreas(resorted, lat, lng));
                 setActiveArea(null);
@@ -254,17 +281,25 @@ export default function HospitalsScreen() {
 
       // --- Live fetch ---
       try {
-        console.log(`[Hospitals] Fetching live data for ${lat.toFixed(4)}, ${lng.toFixed(4)}...`);
+        console.log(
+          `[Hospitals] Fetching live data for ${lat.toFixed(4)}, ${lng.toFixed(
+            4
+          )}...`
+        );
         const query = `[out:json][timeout:25];(node["amenity"="hospital"](around:15000,${lat},${lng});node["amenity"="clinic"](around:15000,${lat},${lng});node["healthcare"="hospital"](around:15000,${lat},${lng}););out body;`;
 
-        const response = await fetch('https://overpass-api.de/api/interpreter', {
-          method: 'POST',
-          body: 'data=' + encodeURIComponent(query),
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': 'SheGuardAI/1.0 (maternal health companion; contact: support@sheguard.org)',
-          },
-        });
+        const response = await fetch(
+          'https://overpass-api.de/api/interpreter',
+          {
+            method: 'POST',
+            body: 'data=' + encodeURIComponent(query),
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'User-Agent':
+                'SheGuardAI/1.0 (maternal health companion; contact: support@sheguard.org)',
+            },
+          }
+        );
 
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
@@ -275,7 +310,10 @@ export default function HospitalsScreen() {
         processAndSetHospitals(elements, lat, lng);
 
         // Cache the new results
-        await AsyncStorage.setItem(CACHE_KEY_COORDS, JSON.stringify({ lat, lng }));
+        await AsyncStorage.setItem(
+          CACHE_KEY_COORDS,
+          JSON.stringify({ lat, lng })
+        );
         await AsyncStorage.setItem(
           CACHE_KEY_HOSPITALS,
           JSON.stringify(
@@ -291,7 +329,8 @@ export default function HospitalsScreen() {
                 operatorType: el.tags.amenity,
                 lat: el.lat,
                 lng: el.lon,
-                distanceKm: Math.round(haversineKm(lat, lng, el.lat, el.lon) * 10) / 10,
+                distanceKm:
+                  Math.round(haversineKm(lat, lng, el.lat, el.lon) * 10) / 10,
                 tags: el.tags,
               }))
           )
@@ -312,7 +351,8 @@ export default function HospitalsScreen() {
   useEffect(() => {
     async function initLocation() {
       try {
-        const { status: existing } = await Location.getForegroundPermissionsAsync();
+        const { status: existing } =
+          await Location.getForegroundPermissionsAsync();
         let finalStatus = existing;
         if (existing !== 'granted') {
           const { status } = await Location.requestForegroundPermissionsAsync();
@@ -341,7 +381,11 @@ export default function HospitalsScreen() {
         });
         const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setUserCoords(coords);
-        postToWebView({ type: 'setUserLocation', lat: coords.lat, lng: coords.lng });
+        postToWebView({
+          type: 'setUserLocation',
+          lat: coords.lat,
+          lng: coords.lng,
+        });
         await fetchHospitals(coords.lat, coords.lng);
       } catch (err) {
         console.warn('[Hospitals] Location init failed:', err);
@@ -358,7 +402,10 @@ export default function HospitalsScreen() {
 
   const handleCallHospital = (phone: string) => {
     if (!phone) {
-      Alert.alert('No Number', 'No phone number is listed. Calling emergency services.');
+      Alert.alert(
+        'No Number',
+        'No phone number is listed. Calling emergency services.'
+      );
       Linking.openURL('tel:112');
       return;
     }
@@ -391,7 +438,11 @@ export default function HospitalsScreen() {
           pendingCoordsRef.current = null;
         }
         if (userCoords) {
-          postToWebView({ type: 'setUserLocation', lat: userCoords.lat, lng: userCoords.lng });
+          postToWebView({
+            type: 'setUserLocation',
+            lat: userCoords.lat,
+            lng: userCoords.lng,
+          });
         }
       } else if (data.type === 'log') {
         console.log('[Map]', data.message);
@@ -402,16 +453,15 @@ export default function HospitalsScreen() {
   };
 
   // Filter displayed list by active area pill
-  const displayedHospitals =
-    activeArea
-      ? hospitals.filter(
-          (h) =>
-            h.tags['addr:suburb'] === activeArea ||
-            h.tags['addr:neighbourhood'] === activeArea ||
-            h.tags['addr:quarter'] === activeArea ||
-            h.tags['addr:city'] === activeArea
-        )
-      : hospitals;
+  const displayedHospitals = activeArea
+    ? hospitals.filter(
+        (h) =>
+          h.tags['addr:suburb'] === activeArea ||
+          h.tags['addr:neighbourhood'] === activeArea ||
+          h.tags['addr:quarter'] === activeArea ||
+          h.tags['addr:city'] === activeArea
+      )
+    : hospitals;
 
   const mapHtml = `
     <!DOCTYPE html>
@@ -568,7 +618,12 @@ export default function HospitalsScreen() {
           onMessage={handleMessage}
         />
         {loading && (
-          <View style={[styles.loadingOverlay, { backgroundColor: activeColors.background + 'CC' }]}>
+          <View
+            style={[
+              styles.loadingOverlay,
+              { backgroundColor: activeColors.background + 'CC' },
+            ]}
+          >
             <ActivityIndicator size="large" color={activeColors.primary} />
             <Text style={[styles.loadingText, { color: activeColors.text }]}>
               Finding nearest clinics...
@@ -591,7 +646,9 @@ export default function HospitalsScreen() {
               styles.pill,
               {
                 backgroundColor:
-                  activeArea === null ? activeColors.primary : activeColors.surface,
+                  activeArea === null
+                    ? activeColors.primary
+                    : activeColors.surface,
                 borderColor: activeColors.border,
               },
             ]}
@@ -605,7 +662,9 @@ export default function HospitalsScreen() {
             <Text
               style={[
                 styles.pillText,
-                { color: activeArea === null ? '#fff' : activeColors.textMuted },
+                {
+                  color: activeArea === null ? '#fff' : activeColors.textMuted,
+                },
               ]}
             >
               All nearby
@@ -620,7 +679,9 @@ export default function HospitalsScreen() {
                 styles.pill,
                 {
                   backgroundColor:
-                    activeArea === area ? activeColors.primary : activeColors.surface,
+                    activeArea === area
+                      ? activeColors.primary
+                      : activeColors.surface,
                   borderColor: activeColors.border,
                 },
               ]}
@@ -628,7 +689,10 @@ export default function HospitalsScreen() {
               <Text
                 style={[
                   styles.pillText,
-                  { color: activeArea === area ? '#fff' : activeColors.textMuted },
+                  {
+                    color:
+                      activeArea === area ? '#fff' : activeColors.textMuted,
+                  },
                 ]}
               >
                 {area}
@@ -646,8 +710,14 @@ export default function HospitalsScreen() {
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="alert-circle-outline" size={48} color={activeColors.textMuted} />
-              <Text style={[styles.emptyText, { color: activeColors.textMuted }]}>
+              <Ionicons
+                name="alert-circle-outline"
+                size={48}
+                color={activeColors.textMuted}
+              />
+              <Text
+                style={[styles.emptyText, { color: activeColors.textMuted }]}
+              >
                 No maternity clinics found nearby. Try refreshing.
               </Text>
             </View>
@@ -663,7 +733,9 @@ export default function HospitalsScreen() {
                 styles.hospitalCard,
                 {
                   backgroundColor: activeColors.surface,
-                  borderColor: isSelected ? activeColors.primary : activeColors.border,
+                  borderColor: isSelected
+                    ? activeColors.primary
+                    : activeColors.border,
                   borderWidth: isSelected ? 2 : 1,
                 },
               ]}
@@ -684,7 +756,12 @@ export default function HospitalsScreen() {
                         { backgroundColor: activeColors.primaryMuted },
                       ]}
                     >
-                      <Text style={[styles.distanceText, { color: activeColors.primary }]}>
+                      <Text
+                        style={[
+                          styles.distanceText,
+                          { color: activeColors.primary },
+                        ]}
+                      >
                         {item.distanceKm} km
                       </Text>
                     </View>
@@ -692,16 +769,26 @@ export default function HospitalsScreen() {
                 </View>
                 <TouchableOpacity
                   onPress={() => handleCallHospital(item.phone)}
-                  style={[styles.callButton, { backgroundColor: activeColors.primary }]}
+                  style={[
+                    styles.callButton,
+                    { backgroundColor: activeColors.primary },
+                  ]}
                 >
                   <Ionicons name="call" size={16} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
 
               <View style={styles.addressRow}>
-                <Ionicons name="location-outline" size={13} color={activeColors.textMuted} />
+                <Ionicons
+                  name="location-outline"
+                  size={13}
+                  color={activeColors.textMuted}
+                />
                 <Text
-                  style={[styles.hospitalAddress, { color: activeColors.textMuted }]}
+                  style={[
+                    styles.hospitalAddress,
+                    { color: activeColors.textMuted },
+                  ]}
                   numberOfLines={2}
                 >
                   {item.address}
@@ -710,9 +797,16 @@ export default function HospitalsScreen() {
 
               {item.openingHours ? (
                 <View style={styles.hoursRow}>
-                  <Ionicons name="time-outline" size={13} color={activeColors.textMuted} />
+                  <Ionicons
+                    name="time-outline"
+                    size={13}
+                    color={activeColors.textMuted}
+                  />
                   <Text
-                    style={[styles.hoursText, { color: activeColors.textMuted }]}
+                    style={[
+                      styles.hoursText,
+                      { color: activeColors.textMuted },
+                    ]}
                     numberOfLines={1}
                   >
                     {item.openingHours}
@@ -738,7 +832,10 @@ export default function HospitalsScreen() {
                       style={[
                         styles.badgeText,
                         {
-                          color: i === 0 ? activeColors.primary : activeColors.textMuted,
+                          color:
+                            i === 0
+                              ? activeColors.primary
+                              : activeColors.textMuted,
                         },
                       ]}
                     >

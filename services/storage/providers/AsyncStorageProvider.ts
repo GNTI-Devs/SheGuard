@@ -21,7 +21,10 @@ const safeStorage = {
       }
       return await AsyncStorage.getItem(key);
     } catch (e) {
-      console.warn(`AsyncStorage get failed for key "${key}", using in-memory store.`, e);
+      console.warn(
+        `AsyncStorage get failed for key "${key}", using in-memory store.`,
+        e
+      );
       return inMemoryStore.get(key) || null;
     }
   },
@@ -34,7 +37,10 @@ const safeStorage = {
       }
       await AsyncStorage.setItem(key, value);
     } catch (e) {
-      console.warn(`AsyncStorage set failed for key "${key}", using in-memory store.`, e);
+      console.warn(
+        `AsyncStorage set failed for key "${key}", using in-memory store.`,
+        e
+      );
       inMemoryStore.set(key, value);
     }
   },
@@ -47,10 +53,13 @@ const safeStorage = {
       }
       await AsyncStorage.removeItem(key);
     } catch (e) {
-      console.warn(`AsyncStorage remove failed for key "${key}", using in-memory store.`, e);
+      console.warn(
+        `AsyncStorage remove failed for key "${key}", using in-memory store.`,
+        e
+      );
       inMemoryStore.delete(key);
     }
-  }
+  },
 };
 
 export class AsyncStorageProvider implements IStorageService {
@@ -74,7 +83,6 @@ export class AsyncStorageProvider implements IStorageService {
 
   // --- Profile Methods ---
   async getProfile(): Promise<UserProfile | null> {
-
     try {
       const raw = await safeStorage.getItem('profile');
       return raw ? JSON.parse(raw) : null;

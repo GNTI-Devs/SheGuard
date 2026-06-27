@@ -21,7 +21,9 @@ export default async ({ req, res, log, error }) => {
     const apiSecret = process.env.LIVEKIT_API_SECRET;
 
     if (!apiKey || !apiSecret) {
-      throw new Error('Missing LiveKit environment variables on Appwrite Function.');
+      throw new Error(
+        'Missing LiveKit environment variables on Appwrite Function.'
+      );
     }
 
     const token = new AccessToken(apiKey, apiSecret, {
@@ -35,7 +37,7 @@ export default async ({ req, res, log, error }) => {
     });
 
     token.metadata = JSON.stringify({
-      language: language
+      language: language,
     });
 
     const tokenJwt = await token.toJwt();

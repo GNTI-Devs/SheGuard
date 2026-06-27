@@ -10,7 +10,7 @@ export function useColorScheme(): 'light' | 'dark' {
     return context.colorScheme;
   } catch (e) {
     // Fallback if context is not available (e.g. outside ThemeProvider / tests)
-    const { useColorScheme: useSystemColorScheme } = require('react-native');
-    return useSystemColorScheme() ?? 'dark';
+    const { Appearance } = require('react-native');
+    return Appearance.getColorScheme() ?? 'dark';
   }
 }

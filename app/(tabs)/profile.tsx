@@ -16,14 +16,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCustomAlert } from '@/components/CustomAlert';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
+import { useEffect } from 'react';
 
 export default function ProfileScreen() {
   const { profile, saveProfile, clearProfile } = useUserProfile();
   const { language, setLanguage } = useLanguage();
-  const { colorScheme, themePreference, setThemePreference } = useThemeContext();
+  const { colorScheme, themePreference, setThemePreference } =
+    useThemeContext();
   const activeColors = Colors[colorScheme];
   const router = useRouter();
   const { showAlert, AlertModal } = useCustomAlert();
+  const { play, stop, isPlaying, activeKey } = useAudioPlayer();
+
+  useEffect(() => {
+    return () => {
+      stop();
+    };
+  }, []);
 
   const [newContact, setNewContact] = useState('');
   const [isEditingLang, setIsEditingLang] = useState(false);
@@ -56,7 +66,12 @@ export default function ProfileScreen() {
       await saveProfile(updatedProfile);
       setNewContact('');
     } catch (e) {
-      showAlert({ title: 'Error', message: 'Failed to add contact.', type: 'danger', buttons: [{ text: 'OK' }] });
+      showAlert({
+        title: 'Error',
+        message: 'Failed to add contact.',
+        type: 'danger',
+        buttons: [{ text: 'OK' }],
+      });
     }
   };
 
@@ -69,7 +84,12 @@ export default function ProfileScreen() {
     try {
       await saveProfile(updatedProfile);
     } catch (e) {
-      showAlert({ title: 'Error', message: 'Failed to remove contact.', type: 'danger', buttons: [{ text: 'OK' }] });
+      showAlert({
+        title: 'Error',
+        message: 'Failed to remove contact.',
+        type: 'danger',
+        buttons: [{ text: 'OK' }],
+      });
     }
   };
 
@@ -81,7 +101,8 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     showAlert({
       title: 'Sign Out & Reset',
-      message: 'Are you sure you want to sign out? This will clear your offline profile details and return you to the welcome screen.',
+      message:
+        'Are you sure you want to sign out? This will clear your offline profile details and return you to the welcome screen.',
       type: 'warning',
       buttons: [
         { text: 'Cancel', style: 'cancel' },
@@ -112,11 +133,16 @@ export default function ProfileScreen() {
 
   const getAvatarEmoji = (avKey: string) => {
     switch (avKey) {
-      case 'avatar_1': return '🤰🏼';
-      case 'avatar_2': return '🤰🏽';
-      case 'avatar_3': return '🤰🏾';
-      case 'avatar_4': return '🤱🏾';
-      default: return '🤰';
+      case 'avatar_1':
+        return '🤰🏼';
+      case 'avatar_2':
+        return '🤰🏽';
+      case 'avatar_3':
+        return '🤰🏾';
+      case 'avatar_4':
+        return '🤱🏾';
+      default:
+        return '🤰';
     }
   };
 
@@ -128,12 +154,68 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Screen Header with Audio Guide */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 4,
+            marginBottom: 16,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 24,
+              fontWeight: 'bold',
+              color: activeColors.primary,
+            }}
+          >
+            Profile & Settings
+          </Text>
+          <TouchableOpacity
+            onPress={() => play('settings')}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              borderWidth: 1,
+              borderColor: activeColors.border,
+              backgroundColor:
+                activeKey === 'settings' && isPlaying
+                  ? activeColors.primary
+                  : activeColors.surface,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name={
+                activeKey === 'settings' && isPlaying
+                  ? 'volume-mute'
+                  : 'volume-high'
+              }
+              size={22}
+              color={
+                activeKey === 'settings' && isPlaying
+                  ? '#FFFFFF'
+                  : activeColors.primary
+              }
+            />
+          </TouchableOpacity>
+        </View>
+
         {/* Profile Card */}
         <View style={styles.header}>
           <View
             style={[
               styles.avatarContainer,
-              { backgroundColor: activeColors.surface, borderColor: activeColors.primary, borderWidth: 2 },
+              {
+                backgroundColor: activeColors.surface,
+                borderColor: activeColors.primary,
+                borderWidth: 2,
+              },
             ]}
           >
             <Text style={{ fontSize: 44 }}>
@@ -323,7 +405,10 @@ export default function ProfileScreen() {
         <View
           style={[
             styles.section,
-            { backgroundColor: activeColors.surface, borderColor: activeColors.border },
+            {
+              backgroundColor: activeColors.surface,
+              borderColor: activeColors.border,
+            },
           ]}
         >
           <View style={styles.sectionHeader}>
@@ -333,7 +418,8 @@ export default function ProfileScreen() {
             </Text>
           </View>
           <Text style={[styles.sectionHint, { color: activeColors.textMuted }]}>
-            Set your primary doctor's phone number. In case of emergency check-ins, you can easily call or alert your doctor.
+            Set your primary doctor's phone number. In case of emergency
+            check-ins, you can easily call or alert your doctor.
           </Text>
           <View style={styles.addContactRow}>
             <TextInput
@@ -361,12 +447,21 @@ export default function ProfileScreen() {
         <View
           style={[
             styles.section,
-            { backgroundColor: activeColors.surface, borderColor: activeColors.border },
+            {
+              backgroundColor: activeColors.surface,
+              borderColor: activeColors.border,
+            },
           ]}
         >
           <View style={styles.sectionHeader}>
-            <Ionicons name="contrast-outline" size={20} color={activeColors.primary} />
-            <Text style={[styles.sectionTitle, { color: activeColors.text }]}>Appearance</Text>
+            <Ionicons
+              name="contrast-outline"
+              size={20}
+              color={activeColors.primary}
+            />
+            <Text style={[styles.sectionTitle, { color: activeColors.text }]}>
+              Appearance
+            </Text>
           </View>
           <Text style={[styles.sectionHint, { color: activeColors.textMuted }]}>
             Choose your preferred display mode.
@@ -374,7 +469,12 @@ export default function ProfileScreen() {
           <View style={styles.themeRow}>
             {(['light', 'dark', 'system'] as const).map((pref) => {
               const isActive = themePreference === pref;
-              const label = pref === 'light' ? '☀️ Light' : pref === 'dark' ? '🌙 Dark' : '📱 System';
+              const label =
+                pref === 'light'
+                  ? '☀️ Light'
+                  : pref === 'dark'
+                  ? '🌙 Dark'
+                  : '📱 System';
               return (
                 <TouchableOpacity
                   key={pref}
@@ -382,12 +482,21 @@ export default function ProfileScreen() {
                   style={[
                     styles.themeOption,
                     {
-                      backgroundColor: isActive ? activeColors.primary : activeColors.surface2,
-                      borderColor: isActive ? activeColors.primary : activeColors.border,
+                      backgroundColor: isActive
+                        ? activeColors.primary
+                        : activeColors.surface2,
+                      borderColor: isActive
+                        ? activeColors.primary
+                        : activeColors.border,
                     },
                   ]}
                 >
-                  <Text style={[styles.themeOptionText, { color: isActive ? '#FFFFFF' : activeColors.text }]}>
+                  <Text
+                    style={[
+                      styles.themeOptionText,
+                      { color: isActive ? '#FFFFFF' : activeColors.text },
+                    ]}
+                  >
                     {label}
                   </Text>
                 </TouchableOpacity>

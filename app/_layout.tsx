@@ -13,7 +13,10 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { ConnectionProvider } from '@/hooks/useConnection';
 import { StorageProvider, useStorage } from '@/services/storage';
 import { Colors } from '@/constants/Colors';
-import { ThemeProvider as AppThemeProvider, useThemeContext } from '@/hooks/useThemeContext';
+import {
+  ThemeProvider as AppThemeProvider,
+  useThemeContext,
+} from '@/hooks/useThemeContext';
 
 function RouteGuard() {
   const { getProfile } = useStorage();
@@ -113,4 +116,3 @@ export default function RootLayout() {
     </AppThemeProvider>
   );
 }
-

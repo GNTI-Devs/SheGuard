@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -14,6 +14,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -48,9 +49,20 @@ export default function IntroScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const activeColors = Colors[colorScheme ?? 'light'];
+  const { play, stop } = useAudioPlayer();
 
   const [activePageIndex, setActivePageIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      play('intro');
+    }, 800);
+    return () => {
+      clearTimeout(timer);
+      stop();
+    };
+  }, []);
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const slideSize = event.nativeEvent.layoutMeasurement.width;
@@ -59,13 +71,14 @@ export default function IntroScreen() {
     setActivePageIndex(pageIndex);
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (activePageIndex < SLIDES.length - 1) {
       scrollViewRef.current?.scrollTo({
         x: (activePageIndex + 1) * SCREEN_WIDTH,
         animated: true,
       });
     } else {
+      await stop();
       router.push('/(onboarding)/permissions');
     }
   };

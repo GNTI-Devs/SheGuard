@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -16,6 +16,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { UserProfile } from '@/services/storage';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 
 const AVATARS = [
   { id: 'avatar_1', emoji: '🤰🏼', label: 'Early stage' },
@@ -31,6 +32,17 @@ export default function ProfileSetupScreen() {
   const { language } = useLanguage();
   const colorScheme = useColorScheme();
   const activeColors = Colors[colorScheme ?? 'light'];
+  const { play, stop } = useAudioPlayer();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      play('profile_setup');
+    }, 800);
+    return () => {
+      clearTimeout(timer);
+      stop();
+    };
+  }, []);
 
   const [name, setName] = useState('');
   const [pregnancyMonth, setPregnancyMonth] = useState<number>(3); // Default to month 3
@@ -64,6 +76,7 @@ export default function ProfileSetupScreen() {
     };
 
     try {
+      await stop();
       await saveProfile(newProfile);
       router.replace('/(tabs)');
     } catch (e) {
@@ -144,7 +157,9 @@ export default function ProfileSetupScreen() {
               <Text style={[styles.inputLabel, { color: activeColors.text }]}>
                 Choose Avatar
               </Text>
-              <Text style={[styles.inputHint, { color: activeColors.textMuted }]}>
+              <Text
+                style={[styles.inputHint, { color: activeColors.textMuted }]}
+              >
                 Select an icon representing your current stage
               </Text>
               <View style={styles.avatarGrid}>
@@ -171,7 +186,11 @@ export default function ProfileSetupScreen() {
                       <Text
                         style={[
                           styles.avatarLabel,
-                          { color: isSelected ? activeColors.primary : activeColors.textMuted },
+                          {
+                            color: isSelected
+                              ? activeColors.primary
+                              : activeColors.textMuted,
+                          },
                         ]}
                       >
                         {av.label}

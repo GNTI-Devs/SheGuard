@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -12,11 +12,23 @@ import { Colors } from '@/constants/Colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { mediaDevices } from '@livekit/react-native-webrtc';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 
 export default function PermissionsScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const activeColors = Colors[colorScheme ?? 'light'];
+  const { play, stop } = useAudioPlayer();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      play('permissions');
+    }, 800);
+    return () => {
+      clearTimeout(timer);
+      stop();
+    };
+  }, []);
 
   const [micGranted, setMicGranted] = useState(false);
   const [notifGranted, setNotifGranted] = useState(false);
@@ -56,8 +68,9 @@ export default function PermissionsScreen() {
     setNotifGranted(true);
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (micGranted && notifGranted) {
+      await stop();
       router.push('/(onboarding)/auth-demo');
     }
   };

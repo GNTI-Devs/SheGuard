@@ -34,7 +34,7 @@ export default function AuthDemoScreen() {
     // For standard login, we take them to profile-setup to set their custom details
     router.push({
       pathname: '/(onboarding)/profile-setup',
-      params: { phone }
+      params: { phone },
     });
   };
 

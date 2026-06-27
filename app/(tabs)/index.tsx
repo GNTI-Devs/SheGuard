@@ -24,6 +24,7 @@ import { useStorage, DailyCheckIn } from '@/services/storage';
 import Voice from '@react-native-voice/voice';
 import { useCustomAlert } from '@/components/CustomAlert';
 import { TIPS } from './tips';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 
 const MOODS = [
   { id: 'great', emoji: '😊', label: 'Great' },
@@ -39,16 +40,56 @@ const SYMPTOM_SECTIONS = [
     section: '⚠️ Danger Signs — Seek Help Now',
     isDanger: true,
     symptoms: [
-      { id: 'headache', label: '🤕 Severe or Persistent Headache', warning: true },
-      { id: 'swelling', label: '🦵 Sudden Swelling: Face, Hands or Feet', warning: true },
-      { id: 'vision', label: '👁️ Blurred Vision or Seeing Spots', warning: true },
-      { id: 'cramps', label: '⚡ Severe Abdominal Pain or Cramps', warning: true },
-      { id: 'movement', label: '👶 Reduced or No Baby Movement (6+ hrs)', warning: true },
-      { id: 'bleeding', label: '🩸 Vaginal Bleeding (any amount)', warning: true },
-      { id: 'fever', label: '🌡️ High Fever (feels very hot, chills)', warning: true },
-      { id: 'breathing', label: '🫁 Sudden Difficulty Breathing', warning: true },
-      { id: 'contractions', label: '🔔 Regular Contractions Before Week 37', warning: true },
-      { id: 'water', label: '💧 Water Breaking / Fluid Leaking', warning: true },
+      {
+        id: 'headache',
+        label: '🤕 Severe or Persistent Headache',
+        warning: true,
+      },
+      {
+        id: 'swelling',
+        label: '🦵 Sudden Swelling: Face, Hands or Feet',
+        warning: true,
+      },
+      {
+        id: 'vision',
+        label: '👁️ Blurred Vision or Seeing Spots',
+        warning: true,
+      },
+      {
+        id: 'cramps',
+        label: '⚡ Severe Abdominal Pain or Cramps',
+        warning: true,
+      },
+      {
+        id: 'movement',
+        label: '👶 Reduced or No Baby Movement (6+ hrs)',
+        warning: true,
+      },
+      {
+        id: 'bleeding',
+        label: '🩸 Vaginal Bleeding (any amount)',
+        warning: true,
+      },
+      {
+        id: 'fever',
+        label: '🌡️ High Fever (feels very hot, chills)',
+        warning: true,
+      },
+      {
+        id: 'breathing',
+        label: '🫁 Sudden Difficulty Breathing',
+        warning: true,
+      },
+      {
+        id: 'contractions',
+        label: '🔔 Regular Contractions Before Week 37',
+        warning: true,
+      },
+      {
+        id: 'water',
+        label: '💧 Water Breaking / Fluid Leaking',
+        warning: true,
+      },
     ],
   },
   {
@@ -56,14 +97,30 @@ const SYMPTOM_SECTIONS = [
     isDanger: false,
     symptoms: [
       { id: 'nausea', label: '🤢 Nausea or Vomiting', warning: false },
-      { id: 'fatigue', label: '🥱 Extreme Tiredness / Fatigue', warning: false },
+      {
+        id: 'fatigue',
+        label: '🥱 Extreme Tiredness / Fatigue',
+        warning: false,
+      },
       { id: 'heartburn', label: '🔥 Heartburn or Indigestion', warning: false },
       { id: 'backpain', label: '🪑 Lower Back Pain', warning: false },
       { id: 'legcramps', label: '🦿 Leg Cramps', warning: false },
-      { id: 'dizziness', label: '😵 Dizziness or Lightheadedness', warning: false },
+      {
+        id: 'dizziness',
+        label: '😵 Dizziness or Lightheadedness',
+        warning: false,
+      },
       { id: 'constipation', label: '🚽 Constipation', warning: false },
-      { id: 'itching', label: '🖐️ Itchy Skin (especially palms/feet)', warning: false },
-      { id: 'anxiety', label: '🧠 Anxiety / Persistent Sadness / Feeling Low', warning: false },
+      {
+        id: 'itching',
+        label: '🖐️ Itchy Skin (especially palms/feet)',
+        warning: false,
+      },
+      {
+        id: 'anxiety',
+        label: '🧠 Anxiety / Persistent Sadness / Feeling Low',
+        warning: false,
+      },
       { id: 'insomnia', label: '🌙 Difficulty Sleeping', warning: false },
     ],
   },
@@ -79,6 +136,14 @@ export default function HomeScreen() {
   const { colorScheme } = useThemeContext();
   const activeColors = Colors[colorScheme];
   const { showAlert, AlertModal } = useCustomAlert();
+  const { play, stop, isPlaying, activeKey } = useAudioPlayer();
+
+  // Stop playback when screen is navigated away from / unmounted
+  useEffect(() => {
+    return () => {
+      stop();
+    };
+  }, []);
 
   // Dynamically select a tip based on pregnancy month and current day of the month
   const monthVal = profile?.pregnancyMonth || 6;
@@ -92,18 +157,27 @@ export default function HomeScreen() {
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.025, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnim, {
+          toValue: 1.025,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 900,
+          useNativeDriver: true,
+        }),
       ])
     );
     pulse.start();
     return () => pulse.stop();
   }, [pulseAnim]);
 
-
   // Check-in modal states
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
-  const [mood, setMood] = useState<'great' | 'good' | 'tired' | 'unwell' | 'anxious' | null>(null);
+  const [mood, setMood] = useState<
+    'great' | 'good' | 'tired' | 'unwell' | 'anxious' | null
+  >(null);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -116,7 +190,8 @@ export default function HomeScreen() {
   useEffect(() => {
     async function prefetchLocationAndHospitals() {
       try {
-        const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
+        const { status: existingStatus } =
+          await Location.getForegroundPermissionsAsync();
         let finalStatus = existingStatus;
 
         if (existingStatus !== 'granted') {
@@ -125,7 +200,9 @@ export default function HomeScreen() {
         }
 
         if (finalStatus !== 'granted') {
-          console.log('[Hospitals Background] Location permission not granted.');
+          console.log(
+            '[Hospitals Background] Location permission not granted.'
+          );
           return;
         }
 
@@ -135,33 +212,47 @@ export default function HomeScreen() {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
 
-        console.log(`[Hospitals Background] Resolved coords: ${lat}, ${lng}. Caching...`);
-        await AsyncStorage.setItem('cached_user_coords', JSON.stringify({ lat, lng }));
+        console.log(
+          `[Hospitals Background] Resolved coords: ${lat}, ${lng}. Caching...`
+        );
+        await AsyncStorage.setItem(
+          'cached_user_coords',
+          JSON.stringify({ lat, lng })
+        );
 
         const query = `[out:json][timeout:25];(node["amenity"="hospital"](around:15000,${lat},${lng});node["amenity"="clinic"](around:15000,${lat},${lng}););out body;`;
-        
-        const response = await fetch('https://overpass-api.de/api/interpreter', {
-          method: 'POST',
-          body: 'data=' + encodeURIComponent(query),
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': 'SheGuardAI/1.0 (maternal health companion; contact: support@sheguard.org)'
+
+        const response = await fetch(
+          'https://overpass-api.de/api/interpreter',
+          {
+            method: 'POST',
+            body: 'data=' + encodeURIComponent(query),
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'User-Agent':
+                'SheGuardAI/1.0 (maternal health companion; contact: support@sheguard.org)',
+            },
           }
-        });
-        
+        );
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
         const elements = data.elements || [];
-        
+
         const list = elements.map((el: any) => {
-          const name = el.tags.name || el.tags['name:en'] || 'Maternity Clinic / Hospital';
-          const address = el.tags['addr:street'] 
-            ? (el.tags['addr:street'] + (el.tags['addr:city'] ? ', ' + el.tags['addr:city'] : '')) 
-            : (el.tags['addr:suburb'] || el.tags['addr:neighbourhood'] || 'Maternity facility nearby');
-          const phone = el.tags.phone || el.tags['contact:phone'] || 'Emergency Dial';
+          const name =
+            el.tags.name || el.tags['name:en'] || 'Maternity Clinic / Hospital';
+          const address = el.tags['addr:street']
+            ? el.tags['addr:street'] +
+              (el.tags['addr:city'] ? ', ' + el.tags['addr:city'] : '')
+            : el.tags['addr:suburb'] ||
+              el.tags['addr:neighbourhood'] ||
+              'Maternity facility nearby';
+          const phone =
+            el.tags.phone || el.tags['contact:phone'] || 'Emergency Dial';
           return {
             id: el.id.toString(),
             name,
@@ -169,14 +260,17 @@ export default function HomeScreen() {
             phone,
             lat: el.lat,
             lng: el.lon,
-            maternityFeatures: el.tags.amenity === 'hospital' 
-              ? ['General Emergency', 'Maternity Ward'] 
-              : ['Outpatient Clinic', 'Prenatal Care']
+            maternityFeatures:
+              el.tags.amenity === 'hospital'
+                ? ['General Emergency', 'Maternity Ward']
+                : ['Outpatient Clinic', 'Prenatal Care'],
           };
         });
 
         await AsyncStorage.setItem('cached_hospitals', JSON.stringify(list));
-        console.log(`[Hospitals Background] Successfully pre-fetched and cached ${list.length} clinics.`);
+        console.log(
+          `[Hospitals Background] Successfully pre-fetched and cached ${list.length} clinics.`
+        );
       } catch (err) {
         console.warn('[Hospitals Background] Failed to prefetch:', err);
       }
@@ -200,13 +294,18 @@ export default function HomeScreen() {
         }
       };
     } catch (e) {
-      console.warn('Voice speech recognition not supported on this device/platform:', e);
+      console.warn(
+        'Voice speech recognition not supported on this device/platform:',
+        e
+      );
       setIsVoiceSupported(false);
     }
 
     return () => {
       try {
-        Voice.destroy().then(Voice.removeAllListeners).catch(() => {});
+        Voice.destroy()
+          .then(Voice.removeAllListeners)
+          .catch(() => {});
       } catch (e) {}
     };
   }, []);
@@ -273,12 +372,21 @@ export default function HomeScreen() {
   const getDangerSymptomNames = () =>
     selectedSymptoms
       .filter((sId) => SYMPTOMS.find((s) => s.id === sId)?.warning)
-      .map((sId) => SYMPTOMS.find((s) => s.id === sId)?.label.replace(/^[^a-zA-Z]+/, '').trim())
+      .map((sId) =>
+        SYMPTOMS.find((s) => s.id === sId)
+          ?.label.replace(/^[^a-zA-Z]+/, '')
+          .trim()
+      )
       .join(', ');
 
   const handleSaveCheckIn = async () => {
     if (!mood) {
-      showAlert({ title: 'Mood Required', message: 'Please select how you are feeling before saving.', type: 'info', buttons: [{ text: 'OK' }] });
+      showAlert({
+        title: 'Mood Required',
+        message: 'Please select how you are feeling before saving.',
+        type: 'info',
+        buttons: [{ text: 'OK' }],
+      });
       return;
     }
 
@@ -311,7 +419,8 @@ These are warning signs that need urgent medical attention. Please speak to SheG
       } else {
         showAlert({
           title: 'Check-in Saved ✅',
-          message: 'Your daily health log has been recorded in your health journal.',
+          message:
+            'Your daily health log has been recorded in your health journal.',
           type: 'success',
           buttons: [{ text: 'Great!' }],
         });
@@ -323,7 +432,12 @@ These are warning signs that need urgent medical attention. Please speak to SheG
       setNotes('');
       setIsCheckInOpen(false);
     } catch (err) {
-      showAlert({ title: 'Error', message: 'Failed to register check-in. Please try again.', type: 'danger', buttons: [{ text: 'OK' }] });
+      showAlert({
+        title: 'Error',
+        message: 'Failed to register check-in. Please try again.',
+        type: 'danger',
+        buttons: [{ text: 'OK' }],
+      });
     } finally {
       setSaving(false);
     }
@@ -340,29 +454,63 @@ These are warning signs that need urgent medical attention. Please speak to SheG
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={[styles.greetingText, { color: activeColors.textMuted }]}>
+            <Text
+              style={[styles.greetingText, { color: activeColors.textMuted }]}
+            >
               Welcome back,
             </Text>
             <Text style={[styles.nameText, { color: activeColors.text }]}>
               {name}
             </Text>
           </View>
-          <TouchableOpacity
-            style={[
-              styles.notificationIcon,
-              {
-                backgroundColor: activeColors.surface,
-                borderColor: activeColors.border,
-              },
-            ]}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="notifications-outline"
-              size={22}
-              color={activeColors.primary}
-            />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            {/* Audio Guide Speaker Button */}
+            <TouchableOpacity
+              onPress={() => play('home')}
+              style={[
+                styles.notificationIcon,
+                {
+                  backgroundColor:
+                    activeKey === 'home' && isPlaying
+                      ? activeColors.primary
+                      : activeColors.surface,
+                  borderColor: activeColors.border,
+                },
+              ]}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name={
+                  activeKey === 'home' && isPlaying
+                    ? 'volume-mute'
+                    : 'volume-high'
+                }
+                size={22}
+                color={
+                  activeKey === 'home' && isPlaying
+                    ? '#FFFFFF'
+                    : activeColors.primary
+                }
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.notificationIcon,
+                {
+                  backgroundColor: activeColors.surface,
+                  borderColor: activeColors.border,
+                },
+              ]}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="notifications-outline"
+                size={22}
+                color={activeColors.primary}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Pregnancy Tracker Card */}
@@ -377,10 +525,17 @@ These are warning signs that need urgent medical attention. Please speak to SheG
         >
           <View style={styles.progressHeader}>
             <View>
-              <Text style={[styles.progressTitle, { color: activeColors.text }]}>
+              <Text
+                style={[styles.progressTitle, { color: activeColors.text }]}
+              >
                 Month {month} of Pregnancy
               </Text>
-              <Text style={[styles.progressSubtitle, { color: activeColors.textMuted }]}>
+              <Text
+                style={[
+                  styles.progressSubtitle,
+                  { color: activeColors.textMuted },
+                ]}
+              >
                 Approximately Week {currentWeek}
               </Text>
             </View>
@@ -411,7 +566,9 @@ These are warning signs that need urgent medical attention. Please speak to SheG
               size={16}
               color={activeColors.textMuted}
             />
-            <Text style={[styles.dueDateText, { color: activeColors.textMuted }]}>
+            <Text
+              style={[styles.dueDateText, { color: activeColors.textMuted }]}
+            >
               Estimated Due Date:{' '}
               <Text style={{ fontWeight: '600', color: activeColors.text }}>
                 {formatDate(profile?.dueDate || '')}
@@ -440,14 +597,26 @@ These are warning signs that need urgent medical attention. Please speak to SheG
           >
             <View style={styles.checkInContentRow}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.checkInTitle, { color: activeColors.primary }]}>
+                <Text
+                  style={[styles.checkInTitle, { color: activeColors.primary }]}
+                >
                   How are you feeling today?
                 </Text>
-                <Text style={[styles.checkInSubtitle, { color: activeColors.textMuted }]}>
+                <Text
+                  style={[
+                    styles.checkInSubtitle,
+                    { color: activeColors.textMuted },
+                  ]}
+                >
                   Tap here to log your daily symptoms and mood 👆
                 </Text>
               </View>
-              <View style={[styles.checkInIconCircle, { backgroundColor: activeColors.primary }]}>
+              <View
+                style={[
+                  styles.checkInIconCircle,
+                  { backgroundColor: activeColors.primary },
+                ]}
+              >
                 <Ionicons name="heart" size={22} color="#FFFFFF" />
               </View>
             </View>
@@ -459,7 +628,9 @@ These are warning signs that need urgent medical attention. Please speak to SheG
           <Text style={[styles.orbSectionTitle, { color: activeColors.text }]}>
             Talk to SheGuard AI
           </Text>
-          <Text style={[styles.orbSectionDesc, { color: activeColors.textMuted }]}>
+          <Text
+            style={[styles.orbSectionDesc, { color: activeColors.textMuted }]}
+          >
             Tap below to begin your real-time voice consultation
           </Text>
 
@@ -505,7 +676,10 @@ These are warning signs that need urgent medical attention. Please speak to SheG
               styles.gridCard,
               {
                 backgroundColor: activeColors.surface,
-                borderColor: dailyTip.dangerLevel === 'high' ? activeColors.emergency : activeColors.border,
+                borderColor:
+                  dailyTip.dangerLevel === 'high'
+                    ? activeColors.emergency
+                    : activeColors.border,
               },
             ]}
             activeOpacity={0.8}
@@ -521,10 +695,27 @@ These are warning signs that need urgent medical attention. Please speak to SheG
               </Text>
             </View>
             <View style={{ flex: 1, justifyContent: 'flex-start' }}>
-              <Text style={[styles.cardContent, { color: activeColors.text, fontWeight: 'bold' }]} numberOfLines={1}>
+              <Text
+                style={[
+                  styles.cardContent,
+                  { color: activeColors.text, fontWeight: 'bold' },
+                ]}
+                numberOfLines={1}
+              >
                 {dailyTip.title}
               </Text>
-              <Text style={[styles.cardContent, { color: activeColors.textMuted, marginTop: 2, fontSize: 10, lineHeight: 14 }]} numberOfLines={4}>
+              <Text
+                style={[
+                  styles.cardContent,
+                  {
+                    color: activeColors.textMuted,
+                    marginTop: 2,
+                    fontSize: 10,
+                    lineHeight: 14,
+                  },
+                ]}
+                numberOfLines={4}
+              >
                 {dailyTip.content}
               </Text>
             </View>
@@ -550,7 +741,9 @@ These are warning signs that need urgent medical attention. Please speak to SheG
                 Antenatal Visit
               </Text>
             </View>
-            <Text style={[styles.cardContent, { color: activeColors.textMuted }]}>
+            <Text
+              style={[styles.cardContent, { color: activeColors.textMuted }]}
+            >
               Your next hospital check-up should be scheduled soon. Tap profile
               to configure reminders.
             </Text>
@@ -562,20 +755,30 @@ These are warning signs that need urgent medical attention. Please speak to SheG
           onPress={() => {
             showAlert({
               title: '🚨 Emergency SOS',
-              message: 'What is happening right now? Select the closest description.',
+              message:
+                'What is happening right now? Select the closest description.',
               type: 'danger',
               buttons: [
                 {
                   text: '🩸 Severe pain / bleeding / no baby movement',
-                  onPress: () => router.push('/conversation?triggerEmergency=true&concern=danger'),
+                  onPress: () =>
+                    router.push(
+                      '/conversation?triggerEmergency=true&concern=danger'
+                    ),
                 },
                 {
                   text: '🌡️ High fever / difficulty breathing',
-                  onPress: () => router.push('/conversation?triggerEmergency=true&concern=fever'),
+                  onPress: () =>
+                    router.push(
+                      '/conversation?triggerEmergency=true&concern=fever'
+                    ),
                 },
                 {
                   text: '🔔 Labour contractions / water broke',
-                  onPress: () => router.push('/conversation?triggerEmergency=true&concern=labour'),
+                  onPress: () =>
+                    router.push(
+                      '/conversation?triggerEmergency=true&concern=labour'
+                    ),
                 },
                 {
                   text: '📞 Call 112 Emergency Services',
@@ -591,7 +794,12 @@ These are warning signs that need urgent medical attention. Please speak to SheG
           ]}
           activeOpacity={0.9}
         >
-          <Ionicons name="warning" size={22} color="#FFFFFF" style={styles.sosIcon} />
+          <Ionicons
+            name="warning"
+            size={22}
+            color="#FFFFFF"
+            style={styles.sosIcon}
+          />
           <Text style={styles.sosButtonText}>🚨 EMERGENCY SOS</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -607,16 +815,25 @@ These are warning signs that need urgent medical attention. Please speak to SheG
           <View
             style={[
               styles.modalContent,
-              { backgroundColor: activeColors.surface, borderColor: activeColors.border },
+              {
+                backgroundColor: activeColors.surface,
+                borderColor: activeColors.border,
+              },
             ]}
           >
             {/* Modal Header */}
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: activeColors.primary }]}>
+              <Text
+                style={[styles.modalTitle, { color: activeColors.primary }]}
+              >
                 Daily Health Check-in
               </Text>
               <TouchableOpacity onPress={() => setIsCheckInOpen(false)}>
-                <Ionicons name="close" size={24} color={activeColors.textMuted} />
+                <Ionicons
+                  name="close"
+                  size={24}
+                  color={activeColors.textMuted}
+                />
               </TouchableOpacity>
             </View>
 
@@ -625,7 +842,9 @@ These are warning signs that need urgent medical attention. Please speak to SheG
               contentContainerStyle={styles.modalScroll}
             >
               {/* Mood Selection */}
-              <Text style={[styles.modalSectionLabel, { color: activeColors.text }]}>
+              <Text
+                style={[styles.modalSectionLabel, { color: activeColors.text }]}
+              >
                 How is your mood?
               </Text>
               <View style={styles.moodRow}>
@@ -638,8 +857,12 @@ These are warning signs that need urgent medical attention. Please speak to SheG
                       style={[
                         styles.moodCell,
                         {
-                          backgroundColor: isSel ? activeColors.primary + '15' : activeColors.surface2,
-                          borderColor: isSel ? activeColors.primary : 'transparent',
+                          backgroundColor: isSel
+                            ? activeColors.primary + '15'
+                            : activeColors.surface2,
+                          borderColor: isSel
+                            ? activeColors.primary
+                            : 'transparent',
                         },
                       ]}
                     >
@@ -647,7 +870,11 @@ These are warning signs that need urgent medical attention. Please speak to SheG
                       <Text
                         style={[
                           styles.moodLabel,
-                          { color: isSel ? activeColors.primary : activeColors.text },
+                          {
+                            color: isSel
+                              ? activeColors.primary
+                              : activeColors.text,
+                          },
                         ]}
                       >
                         {m.label}
@@ -664,7 +891,9 @@ These are warning signs that need urgent medical attention. Please speak to SheG
                     style={[
                       styles.modalSectionLabel,
                       {
-                        color: section.isDanger ? activeColors.emergency : activeColors.text,
+                        color: section.isDanger
+                          ? activeColors.emergency
+                          : activeColors.text,
                         marginTop: 4,
                       },
                     ]}
@@ -694,7 +923,12 @@ These are warning signs that need urgent medical attention. Please speak to SheG
                             },
                           ]}
                         >
-                          <Text style={[styles.symptomLabel, { color: activeColors.text }]}>
+                          <Text
+                            style={[
+                              styles.symptomLabel,
+                              { color: activeColors.text },
+                            ]}
+                          >
                             {sym.label}
                           </Text>
                           <Ionicons
@@ -720,19 +954,38 @@ These are warning signs that need urgent medical attention. Please speak to SheG
                 <View
                   style={[
                     styles.dangerBadge,
-                    { backgroundColor: activeColors.emergency + '15', borderColor: activeColors.emergency },
+                    {
+                      backgroundColor: activeColors.emergency + '15',
+                      borderColor: activeColors.emergency,
+                    },
                   ]}
                 >
-                  <Ionicons name="warning" size={20} color={activeColors.emergency} />
-                  <Text style={[styles.dangerBadgeText, { color: activeColors.emergency }]}>
-                    🚨 You have selected pregnancy danger signs. Do not wait — speak to SheGuard AI now or go to the nearest hospital or maternity clinic immediately.
+                  <Ionicons
+                    name="warning"
+                    size={20}
+                    color={activeColors.emergency}
+                  />
+                  <Text
+                    style={[
+                      styles.dangerBadgeText,
+                      { color: activeColors.emergency },
+                    ]}
+                  >
+                    🚨 You have selected pregnancy danger signs. Do not wait —
+                    speak to SheGuard AI now or go to the nearest hospital or
+                    maternity clinic immediately.
                   </Text>
                 </View>
               )}
 
               {/* Notes with Voice Dictation */}
               <View style={styles.notesHeaderRow}>
-                <Text style={[styles.modalSectionLabel, { color: activeColors.text }]}>
+                <Text
+                  style={[
+                    styles.modalSectionLabel,
+                    { color: activeColors.text },
+                  ]}
+                >
                   Notes / How you feel:
                 </Text>
                 {isVoiceSupported && (
@@ -741,7 +994,9 @@ These are warning signs that need urgent medical attention. Please speak to SheG
                     style={[
                       styles.voiceInputBtn,
                       {
-                        backgroundColor: isListening ? activeColors.emergency : activeColors.primary + '15',
+                        backgroundColor: isListening
+                          ? activeColors.emergency
+                          : activeColors.primary + '15',
                       },
                     ]}
                     activeOpacity={0.8}
@@ -754,7 +1009,9 @@ These are warning signs that need urgent medical attention. Please speak to SheG
                     <Text
                       style={[
                         styles.voiceInputBtnText,
-                        { color: isListening ? '#FFFFFF' : activeColors.primary },
+                        {
+                          color: isListening ? '#FFFFFF' : activeColors.primary,
+                        },
                       ]}
                     >
                       {isListening ? 'Listening...' : 'Speak to write'}
@@ -783,7 +1040,10 @@ These are warning signs that need urgent medical attention. Please speak to SheG
               {/* Save Button */}
               <TouchableOpacity
                 onPress={handleSaveCheckIn}
-                style={[styles.saveBtn, { backgroundColor: activeColors.primary }]}
+                style={[
+                  styles.saveBtn,
+                  { backgroundColor: activeColors.primary },
+                ]}
                 disabled={saving}
               >
                 {saving ? (

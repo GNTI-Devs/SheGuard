@@ -51,7 +51,6 @@ export class AppwriteProvider implements IStorageService {
     this.initSession();
   }
 
-
   // Ensure an Appwrite account session is active (creating an anonymous session if none exists)
   private async initSession() {
     try {
@@ -65,7 +64,10 @@ export class AppwriteProvider implements IStorageService {
         this.currentUserId = session.userId;
         this.isUserAuthenticated = true;
       } catch (err) {
-        console.warn('Appwrite: Failed to initialize session, running in local-only mode.', err);
+        console.warn(
+          'Appwrite: Failed to initialize session, running in local-only mode.',
+          err
+        );
       }
     }
   }
@@ -74,7 +76,8 @@ export class AppwriteProvider implements IStorageService {
   async getProfile(): Promise<UserProfile | null> {
     try {
       await this.initSession();
-      if (!this.isUserAuthenticated) return await this.localFallback.getProfile();
+      if (!this.isUserAuthenticated)
+        return await this.localFallback.getProfile();
 
       // Retrieve profile matching the current user ID
       const doc = await databases.getDocument(
@@ -97,7 +100,9 @@ export class AppwriteProvider implements IStorageService {
       };
     } catch (e: any) {
       console.warn(
-        `Appwrite: getProfile failed (Code: ${e.code || 'unknown'}). Falling back to local storage.`,
+        `Appwrite: getProfile failed (Code: ${
+          e.code || 'unknown'
+        }). Falling back to local storage.`,
         e.message
       );
       return await this.localFallback.getProfile();
@@ -148,7 +153,9 @@ export class AppwriteProvider implements IStorageService {
       }
     } catch (e: any) {
       console.warn(
-        `Appwrite: saveProfile failed (Code: ${e.code || 'unknown'}). Saved locally only.`,
+        `Appwrite: saveProfile failed (Code: ${
+          e.code || 'unknown'
+        }). Saved locally only.`,
         e.message
       );
     }
@@ -159,10 +166,17 @@ export class AppwriteProvider implements IStorageService {
     try {
       await this.initSession();
       if (this.isUserAuthenticated) {
-        await databases.deleteDocument(DATABASE_ID, COLLECTIONS.PROFILES, this.currentUserId);
+        await databases.deleteDocument(
+          DATABASE_ID,
+          COLLECTIONS.PROFILES,
+          this.currentUserId
+        );
       }
     } catch (e: any) {
-      console.warn(`Appwrite: clearProfile database deletion failed.`, e.message);
+      console.warn(
+        `Appwrite: clearProfile database deletion failed.`,
+        e.message
+      );
     }
   }
 
@@ -184,7 +198,12 @@ export class AppwriteProvider implements IStorageService {
       };
 
       try {
-        await databases.updateDocument(DATABASE_ID, COLLECTIONS.CONVERSATIONS, record.id, data);
+        await databases.updateDocument(
+          DATABASE_ID,
+          COLLECTIONS.CONVERSATIONS,
+          record.id,
+          data
+        );
       } catch (updateErr: any) {
         if (updateErr.code === 404) {
           await databases.createDocument(
@@ -208,12 +227,17 @@ export class AppwriteProvider implements IStorageService {
   async getConversations(): Promise<ConversationRecord[]> {
     try {
       await this.initSession();
-      if (!this.isUserAuthenticated) return await this.localFallback.getConversations();
+      if (!this.isUserAuthenticated)
+        return await this.localFallback.getConversations();
 
-      const response = await databases.listDocuments(DATABASE_ID, COLLECTIONS.CONVERSATIONS, [
-        Query.equal('user_id', this.currentUserId),
-        Query.orderDesc('started_at'),
-      ]);
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        COLLECTIONS.CONVERSATIONS,
+        [
+          Query.equal('user_id', this.currentUserId),
+          Query.orderDesc('started_at'),
+        ]
+      );
 
       return response.documents.map((doc: any) => ({
         id: doc.conversation_id,
@@ -235,9 +259,14 @@ export class AppwriteProvider implements IStorageService {
   async getConversation(id: string): Promise<ConversationRecord | null> {
     try {
       await this.initSession();
-      if (!this.isUserAuthenticated) return await this.localFallback.getConversation(id);
+      if (!this.isUserAuthenticated)
+        return await this.localFallback.getConversation(id);
 
-      const doc: any = await databases.getDocument(DATABASE_ID, COLLECTIONS.CONVERSATIONS, id);
+      const doc: any = await databases.getDocument(
+        DATABASE_ID,
+        COLLECTIONS.CONVERSATIONS,
+        id
+      );
       return {
         id: doc.conversation_id,
         roomName: doc.room_name,
@@ -247,7 +276,10 @@ export class AppwriteProvider implements IStorageService {
         messages: JSON.parse(doc.messages_json || '[]'),
       };
     } catch (e: any) {
-      console.warn(`Appwrite: getConversation by ID failed. Fetching local fallback.`, e.message);
+      console.warn(
+        `Appwrite: getConversation by ID failed. Fetching local fallback.`,
+        e.message
+      );
       return await this.localFallback.getConversation(id);
     }
   }
@@ -269,7 +301,12 @@ export class AppwriteProvider implements IStorageService {
       };
 
       try {
-        await databases.updateDocument(DATABASE_ID, COLLECTIONS.APPOINTMENTS, appt.id, data);
+        await databases.updateDocument(
+          DATABASE_ID,
+          COLLECTIONS.APPOINTMENTS,
+          appt.id,
+          data
+        );
       } catch (updateErr: any) {
         if (updateErr.code === 404) {
           await databases.createDocument(
@@ -283,18 +320,24 @@ export class AppwriteProvider implements IStorageService {
         }
       }
     } catch (e: any) {
-      console.warn(`Appwrite: saveAppointment database sync failed. Saved locally only.`, e.message);
+      console.warn(
+        `Appwrite: saveAppointment database sync failed. Saved locally only.`,
+        e.message
+      );
     }
   }
 
   async getAppointments(): Promise<AppointmentRecord[]> {
     try {
       await this.initSession();
-      if (!this.isUserAuthenticated) return await this.localFallback.getAppointments();
+      if (!this.isUserAuthenticated)
+        return await this.localFallback.getAppointments();
 
-      const response = await databases.listDocuments(DATABASE_ID, COLLECTIONS.APPOINTMENTS, [
-        Query.equal('user_id', this.currentUserId),
-      ]);
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        COLLECTIONS.APPOINTMENTS,
+        [Query.equal('user_id', this.currentUserId)]
+      );
 
       return response.documents.map((doc: any) => ({
         id: doc.appointment_id,
@@ -304,7 +347,10 @@ export class AppwriteProvider implements IStorageService {
         completed: doc.completed,
       }));
     } catch (e: any) {
-      console.warn(`Appwrite: getAppointments failed. Fetching local fallback.`, e.message);
+      console.warn(
+        `Appwrite: getAppointments failed. Fetching local fallback.`,
+        e.message
+      );
       return await this.localFallback.getAppointments();
     }
   }
@@ -315,11 +361,19 @@ export class AppwriteProvider implements IStorageService {
       await this.initSession();
       if (!this.isUserAuthenticated) return;
 
-      await databases.updateDocument(DATABASE_ID, COLLECTIONS.APPOINTMENTS, id, {
-        completed: true,
-      });
+      await databases.updateDocument(
+        DATABASE_ID,
+        COLLECTIONS.APPOINTMENTS,
+        id,
+        {
+          completed: true,
+        }
+      );
     } catch (e: any) {
-      console.warn(`Appwrite: markAppointmentComplete database sync failed.`, e.message);
+      console.warn(
+        `Appwrite: markAppointmentComplete database sync failed.`,
+        e.message
+      );
     }
   }
 
@@ -330,7 +384,11 @@ export class AppwriteProvider implements IStorageService {
       if (!this.isUserAuthenticated) return await this.localFallback.get(key);
 
       const docId = `${this.currentUserId}_${key}`;
-      const doc = await databases.getDocument(DATABASE_ID, COLLECTIONS.KEYVALUE, docId);
+      const doc = await databases.getDocument(
+        DATABASE_ID,
+        COLLECTIONS.KEYVALUE,
+        docId
+      );
       return doc.value;
     } catch (e: any) {
       return await this.localFallback.get(key);
@@ -352,10 +410,20 @@ export class AppwriteProvider implements IStorageService {
       };
 
       try {
-        await databases.updateDocument(DATABASE_ID, COLLECTIONS.KEYVALUE, docId, data);
+        await databases.updateDocument(
+          DATABASE_ID,
+          COLLECTIONS.KEYVALUE,
+          docId,
+          data
+        );
       } catch (updateErr: any) {
         if (updateErr.code === 404) {
-          await databases.createDocument(DATABASE_ID, COLLECTIONS.KEYVALUE, docId, data);
+          await databases.createDocument(
+            DATABASE_ID,
+            COLLECTIONS.KEYVALUE,
+            docId,
+            data
+          );
         } else {
           throw updateErr;
         }
@@ -395,7 +463,12 @@ export class AppwriteProvider implements IStorageService {
       };
 
       try {
-        await databases.updateDocument(DATABASE_ID, COLLECTIONS.DAILY_CHECKINS, checkIn.id, data);
+        await databases.updateDocument(
+          DATABASE_ID,
+          COLLECTIONS.DAILY_CHECKINS,
+          checkIn.id,
+          data
+        );
       } catch (updateErr: any) {
         if (updateErr.code === 404) {
           await databases.createDocument(
@@ -409,19 +482,27 @@ export class AppwriteProvider implements IStorageService {
         }
       }
     } catch (e: any) {
-      console.warn('Appwrite: saveDailyCheckIn sync failed. Saved locally only.', e.message);
+      console.warn(
+        'Appwrite: saveDailyCheckIn sync failed. Saved locally only.',
+        e.message
+      );
     }
   }
 
   async getDailyCheckIns(): Promise<DailyCheckIn[]> {
     try {
       await this.initSession();
-      if (!this.isUserAuthenticated) return await this.localFallback.getDailyCheckIns();
+      if (!this.isUserAuthenticated)
+        return await this.localFallback.getDailyCheckIns();
 
-      const response = await databases.listDocuments(DATABASE_ID, COLLECTIONS.DAILY_CHECKINS, [
-        Query.equal('user_id', this.currentUserId),
-        Query.orderDesc('timestamp'),
-      ]);
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        COLLECTIONS.DAILY_CHECKINS,
+        [
+          Query.equal('user_id', this.currentUserId),
+          Query.orderDesc('timestamp'),
+        ]
+      );
 
       return response.documents.map((doc: any) => ({
         id: doc.checkin_id,
@@ -432,7 +513,10 @@ export class AppwriteProvider implements IStorageService {
         notes: doc.notes || '',
       }));
     } catch (e: any) {
-      console.warn('Appwrite: getDailyCheckIns sync failed. Using local fallback.', e.message);
+      console.warn(
+        'Appwrite: getDailyCheckIns sync failed. Using local fallback.',
+        e.message
+      );
       return await this.localFallback.getDailyCheckIns();
     }
   }

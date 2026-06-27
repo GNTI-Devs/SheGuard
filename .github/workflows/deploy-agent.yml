@@ -1,0 +1,45 @@
+name: Deploy LiveKit Agent
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'agent/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy & Dispatch Agent
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install LiveKit CLI
+        run: |
+          curl -sSL https://raw.githubusercontent.com/livekit/cli/main/install.sh | sh
+          sudo mv bin/lk /usr/local/bin/
+
+      - name: Deploy LiveKit Agent & Recreate Dispatch
+        env:
+          LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          # Write secrets into agent/.env for deployment packaging
+          cat <<EOF > agent/.env
+          LIVEKIT_URL=$LIVEKIT_URL
+          LIVEKIT_API_KEY=$LIVEKIT_API_KEY
+          LIVEKIT_API_SECRET=$LIVEKIT_API_SECRET
+          GOOGLE_API_KEY=$GOOGLE_API_KEY
+          EOF
+          
+          # Deploy the agent using LiveKit CLI
+          lk agent deploy --secrets-file agent/.env agent/
+          
+          # Wait 5 seconds for deployment to settle
+          sleep 5
+          
+          # Recreate dispatch rule to bind the new deployment
+          lk dispatch create --room sheguard-room --agent-name sheguard-ai

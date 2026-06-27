@@ -13,7 +13,8 @@ export default function TabLayout() {
 
   // On Android with gesture navigation, insets.bottom gives us the system bar height.
   // We add 8px of extra breathing room above the nav labels.
-  const tabBarBottomPadding = Platform.OS === 'ios' ? 30 : Math.max(insets.bottom, 8);
+  const tabBarBottomPadding =
+    Platform.OS === 'ios' ? 30 : Math.max(insets.bottom, 8);
   const tabBarHeight = Platform.OS === 'ios' ? 88 : 56 + tabBarBottomPadding;
 
   return (

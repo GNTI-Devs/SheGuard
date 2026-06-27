@@ -4,7 +4,15 @@ import {
   RoomEvent,
   ConnectionState,
 } from 'livekit-client';
-import { createContext, useContext, useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from 'react';
 import { SessionProvider, useSession } from '@livekit/components-react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Client, Functions } from 'react-native-appwrite';
@@ -20,9 +28,10 @@ const appwriteFunctions = new Functions(appwriteClient);
 // Read from Expo environment variables with fallback defaults for production release builds
 const sandboxID = process.env.EXPO_PUBLIC_LIVEKIT_SANDBOX_ID || '';
 const agentName = process.env.EXPO_PUBLIC_LIVEKIT_AGENT_NAME || 'sheguard-ai';
-const hardcodedUrl = process.env.EXPO_PUBLIC_LIVEKIT_URL || 'wss://novasync-novasync-9ozn4l47.livekit.cloud';
+const hardcodedUrl =
+  process.env.EXPO_PUBLIC_LIVEKIT_URL ||
+  'wss://novasync-novasync-9ozn4l47.livekit.cloud';
 const hardcodedToken = process.env.EXPO_PUBLIC_LIVEKIT_TOKEN || '';
-
 
 interface ConnectionContextType {
   isConnectionActive: boolean;
@@ -96,7 +105,10 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       !isDisconnectingRef.current
     ) {
       hasStartedRef.current = true;
-      console.log('Starting LiveKit session with token:', activeToken.substring(0, 15) + '...');
+      console.log(
+        'Starting LiveKit session with token:',
+        activeToken.substring(0, 15) + '...'
+      );
       startSession();
     }
   }, [isConnectionActive, activeToken, startSession]);
@@ -122,7 +134,8 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
               timestamp: new Date().toISOString(),
               mood: 'good',
               symptoms: list,
-              notes: 'Logged automatically by SheGuard AI during voice consultation.'
+              notes:
+                'Logged automatically by SheGuard AI during voice consultation.',
             });
             console.log('[useConnection] Automatically logged symptoms:', list);
           } catch (e) {
@@ -139,9 +152,12 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
               id: `appt-ai-${Date.now()}`,
               title: appt.title,
               datetime: appt.datetime,
-              completed: false
+              completed: false,
             });
-            console.log('[useConnection] Automatically scheduled appointment:', appt);
+            console.log(
+              '[useConnection] Automatically scheduled appointment:',
+              appt
+            );
           } catch (e) {
             console.warn('[useConnection] Failed to auto-save appointment:', e);
           }
@@ -186,7 +202,9 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
   const connect = useCallback(async () => {
     // Guard: don't start if already starting / connected
     if (hasStartedRef.current || isConnectionActive) {
-      console.log('[useConnection] connect() called but already active — ignoring.');
+      console.log(
+        '[useConnection] connect() called but already active — ignoring.'
+      );
       return;
     }
 
@@ -230,7 +248,9 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
         const body = JSON.parse(response.responseBody || '{}');
         tokenToUse = body.token;
         if (!tokenToUse) {
-          throw new Error(body.error || 'Failed to get token from Appwrite function');
+          throw new Error(
+            body.error || 'Failed to get token from Appwrite function'
+          );
         }
         console.log('LiveKit token retrieved from Appwrite successfully.');
       }
@@ -258,14 +278,24 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     endSession();
   }, [endSession]);
 
-  const value = useMemo(() => ({
-    isConnectionActive: isConnectionActive || isLoadingToken,
-    emergencyMode,
-    setEmergencyMode,
-    connect,
-    disconnect,
-    room: session.room,
-  }), [isConnectionActive, isLoadingToken, emergencyMode, connect, disconnect, session.room]);
+  const value = useMemo(
+    () => ({
+      isConnectionActive: isConnectionActive || isLoadingToken,
+      emergencyMode,
+      setEmergencyMode,
+      connect,
+      disconnect,
+      room: session.room,
+    }),
+    [
+      isConnectionActive,
+      isLoadingToken,
+      emergencyMode,
+      connect,
+      disconnect,
+      session.room,
+    ]
+  );
 
   return (
     <SessionProvider session={session}>

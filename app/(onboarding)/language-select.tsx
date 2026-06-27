@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,14 +11,28 @@ import { useLanguage, LanguageCode } from '@/hooks/useLanguage';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 
 export default function LanguageSelectScreen() {
   const router = useRouter();
   const { language, setLanguage, languages } = useLanguage();
   const colorScheme = useColorScheme();
   const activeColors = Colors[colorScheme ?? 'light'];
+  const { play, stop } = useAudioPlayer();
 
-  const handleNext = () => {
+  // Autoplay the welcome audio guide once the screen loads
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      play('welcome');
+    }, 800);
+    return () => {
+      clearTimeout(timer);
+      stop();
+    };
+  }, []);
+
+  const handleNext = async () => {
+    await stop();
     router.push('/(onboarding)/intro');
   };
 

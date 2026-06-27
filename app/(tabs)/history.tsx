@@ -15,6 +15,7 @@ import { Colors } from '@/constants/Colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useStorage, DailyCheckIn } from '@/services/storage';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 
 const SYMPTOMS = [
   { id: 'nausea', label: '🤢 Nausea / Vomiting', warning: false },
@@ -28,9 +29,20 @@ const SYMPTOMS = [
 
 export default function HistoryScreen() {
   const storage = useStorage();
-  const { conversations, loading: convsLoading, refreshConversations } = useConversationHistory();
+  const {
+    conversations,
+    loading: convsLoading,
+    refreshConversations,
+  } = useConversationHistory();
   const colorScheme = useColorScheme();
   const activeColors = Colors[colorScheme ?? 'light'];
+  const { play, stop, isPlaying, activeKey } = useAudioPlayer();
+
+  useEffect(() => {
+    return () => {
+      stop();
+    };
+  }, []);
 
   const [checkIns, setCheckIns] = useState<DailyCheckIn[]>([]);
   const [journalLoading, setJournalLoading] = useState(true);
@@ -86,21 +98,29 @@ export default function HistoryScreen() {
 
   const getMoodEmoji = (mood: string) => {
     switch (mood) {
-      case 'great': return '😊';
-      case 'good': return '🙂';
-      case 'tired': return '🥱';
-      case 'unwell': return '🤢';
-      case 'anxious': return '🥺';
-      default: return '🤰';
+      case 'great':
+        return '😊';
+      case 'good':
+        return '🙂';
+      case 'tired':
+        return '🥱';
+      case 'unwell':
+        return '🤢';
+      case 'anxious':
+        return '🥺';
+      default:
+        return '🤰';
     }
   };
 
   const formatSymptomsList = (sList: string[]) => {
     if (!sList || sList.length === 0) return 'No symptoms reported';
-    return sList.map((sId) => {
-      const match = SYMPTOMS.find((s) => s.id === sId);
-      return match ? match.label : sId;
-    }).join(', ');
+    return sList
+      .map((sId) => {
+        const match = SYMPTOMS.find((s) => s.id === sId);
+        return match ? match.label : sId;
+      })
+      .join(', ');
   };
 
   // Merge daily mood check-ins and LiveKit voice sessions into a single chronological timeline
@@ -109,7 +129,9 @@ export default function HistoryScreen() {
       id: c.id,
       type: 'voice' as const,
       timestamp: c.startedAt,
-      title: c.hadEmergency ? '🚨 Emergency SOS Check' : '💬 Voice Consultation',
+      title: c.hadEmergency
+        ? '🚨 Emergency SOS Check'
+        : '💬 Voice Consultation',
       subtitle: `Call duration: ${getDuration(c.startedAt, c.endedAt)}`,
       hadEmergency: c.hadEmergency,
       details: c,
@@ -124,12 +146,16 @@ export default function HistoryScreen() {
         type: 'checkin' as const,
         timestamp: ci.timestamp,
         title: hasDanger ? '🚨 Risk Alert Logged' : '🩺 Health Check-in',
-        subtitle: `Logged mood: ${ci.mood.charAt(0).toUpperCase() + ci.mood.slice(1)} ${getMoodEmoji(ci.mood)}`,
+        subtitle: `Logged mood: ${
+          ci.mood.charAt(0).toUpperCase() + ci.mood.slice(1)
+        } ${getMoodEmoji(ci.mood)}`,
         hadEmergency: hasDanger,
         details: ci,
       };
-    })
-  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }),
+  ].sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
 
   const loadingState = convsLoading || journalLoading;
 
@@ -138,13 +164,57 @@ export default function HistoryScreen() {
       style={[styles.container, { backgroundColor: activeColors.background }]}
     >
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: activeColors.primary }]}>
-          Health Journal
-        </Text>
-        <Text style={[styles.subtitle, { color: activeColors.textMuted }]}>
-          Chronological logs of your daily check-ins and AI voice consultations
-        </Text>
+      <View
+        style={[
+          styles.header,
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingRight: 20,
+          },
+        ]}
+      >
+        <View style={{ flex: 1, paddingRight: 10 }}>
+          <Text style={[styles.title, { color: activeColors.primary }]}>
+            Health Journal
+          </Text>
+          <Text style={[styles.subtitle, { color: activeColors.textMuted }]}>
+            Chronological logs of your daily check-ins and AI voice
+            consultations
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => play('history')}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            borderWidth: 1,
+            borderColor: activeColors.border,
+            backgroundColor:
+              activeKey === 'history' && isPlaying
+                ? activeColors.primary
+                : activeColors.surface,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={
+              activeKey === 'history' && isPlaying
+                ? 'volume-mute'
+                : 'volume-high'
+            }
+            size={22}
+            color={
+              activeKey === 'history' && isPlaying
+                ? '#FFFFFF'
+                : activeColors.primary
+            }
+          />
+        </TouchableOpacity>
       </View>
 
       {loadingState && timelineItems.length === 0 ? (
@@ -155,15 +225,22 @@ export default function HistoryScreen() {
         <ScrollView
           contentContainerStyle={styles.centerContainer}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={activeColors.primary} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={activeColors.primary}
+            />
           }
         >
           <Text style={styles.emptyIcon}>📖</Text>
           <Text style={[styles.emptyText, { color: activeColors.text }]}>
             Your journal is empty
           </Text>
-          <Text style={[styles.emptySubtext, { color: activeColors.textMuted }]}>
-            Log how you feel on the Home screen or call SheGuard AI to record your first timeline entry.
+          <Text
+            style={[styles.emptySubtext, { color: activeColors.textMuted }]}
+          >
+            Log how you feel on the Home screen or call SheGuard AI to record
+            your first timeline entry.
           </Text>
         </ScrollView>
       ) : (
@@ -171,7 +248,11 @@ export default function HistoryScreen() {
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={activeColors.primary} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={activeColors.primary}
+            />
           }
         >
           {timelineItems.map((item) => {
@@ -199,16 +280,28 @@ export default function HistoryScreen() {
                 >
                   <View style={styles.headerDetails}>
                     <View style={styles.titleRow}>
-                      <Text style={[styles.cardTitle, { color: activeColors.text }]}>
+                      <Text
+                        style={[styles.cardTitle, { color: activeColors.text }]}
+                      >
                         {item.title}
                       </Text>
                       {item.hadEmergency && (
-                        <View style={[styles.sosBadge, { backgroundColor: activeColors.emergency }]}>
+                        <View
+                          style={[
+                            styles.sosBadge,
+                            { backgroundColor: activeColors.emergency },
+                          ]}
+                        >
                           <Text style={styles.sosText}>ALERT</Text>
                         </View>
                       )}
                     </View>
-                    <Text style={[styles.cardDate, { color: activeColors.textMuted }]}>
+                    <Text
+                      style={[
+                        styles.cardDate,
+                        { color: activeColors.textMuted },
+                      ]}
+                    >
                       {formatDate(item.timestamp)} • {item.subtitle}
                     </Text>
                   </View>
@@ -221,59 +314,90 @@ export default function HistoryScreen() {
 
                 {/* Expanded Details Body */}
                 {isExpanded && (
-                  <View style={[styles.expandBody, { borderTopColor: activeColors.border }]}>
+                  <View
+                    style={[
+                      styles.expandBody,
+                      { borderTopColor: activeColors.border },
+                    ]}
+                  >
                     {isVoice ? (
                       // Voice transcript bubbles rendering
                       <View style={styles.voiceSection}>
-                        <Text style={[styles.bodySectionLabel, { color: activeColors.textMuted }]}>
+                        <Text
+                          style={[
+                            styles.bodySectionLabel,
+                            { color: activeColors.textMuted },
+                          ]}
+                        >
                           Call Transcript:
                         </Text>
                         {item.details.messages.length === 0 ? (
-                          <Text style={[styles.noMsgText, { color: activeColors.textMuted }]}>
-                            No conversation transcript recorded for this check-in.
+                          <Text
+                            style={[
+                              styles.noMsgText,
+                              { color: activeColors.textMuted },
+                            ]}
+                          >
+                            No conversation transcript recorded for this
+                            check-in.
                           </Text>
                         ) : (
                           <View style={styles.bubblesFeed}>
-                            {item.details.messages.map((msg: any, index: number) => {
-                              const isUser = msg.role === 'user';
-                              return (
-                                <View
-                                  key={index}
-                                  style={[
-                                    styles.bubbleWrapper,
-                                    {
-                                      alignSelf: isUser ? 'flex-end' : 'flex-start',
-                                      alignItems: isUser ? 'flex-end' : 'flex-start',
-                                    },
-                                  ]}
-                                >
+                            {item.details.messages.map(
+                              (msg: any, index: number) => {
+                                const isUser = msg.role === 'user';
+                                return (
                                   <View
+                                    key={index}
                                     style={[
-                                      styles.bubble,
+                                      styles.bubbleWrapper,
                                       {
-                                        backgroundColor: isUser
-                                          ? activeColors.primary
-                                          : activeColors.surface2,
-                                        borderTopRightRadius: isUser ? 2 : 12,
-                                        borderTopLeftRadius: isUser ? 12 : 2,
+                                        alignSelf: isUser
+                                          ? 'flex-end'
+                                          : 'flex-start',
+                                        alignItems: isUser
+                                          ? 'flex-end'
+                                          : 'flex-start',
                                       },
                                     ]}
                                   >
-                                    <Text
+                                    <View
                                       style={[
-                                        styles.bubbleText,
-                                        { color: isUser ? '#FFFFFF' : activeColors.text },
+                                        styles.bubble,
+                                        {
+                                          backgroundColor: isUser
+                                            ? activeColors.primary
+                                            : activeColors.surface2,
+                                          borderTopRightRadius: isUser ? 2 : 12,
+                                          borderTopLeftRadius: isUser ? 12 : 2,
+                                        },
                                       ]}
                                     >
-                                      {msg.text}
+                                      <Text
+                                        style={[
+                                          styles.bubbleText,
+                                          {
+                                            color: isUser
+                                              ? '#FFFFFF'
+                                              : activeColors.text,
+                                          },
+                                        ]}
+                                      >
+                                        {msg.text}
+                                      </Text>
+                                    </View>
+                                    <Text
+                                      style={[
+                                        styles.bubbleTime,
+                                        { color: activeColors.textMuted },
+                                      ]}
+                                    >
+                                      {isUser ? 'You' : 'SheGuard AI'}
                                     </Text>
                                   </View>
-                                  <Text style={[styles.bubbleTime, { color: activeColors.textMuted }]}>
-                                    {isUser ? 'You' : 'SheGuard AI'}
-                                  </Text>
-                                </View>
-                              );
-                            })}
+                                );
+                              }
+                            )}
                           </View>
                         )}
                       </View>
@@ -281,15 +405,42 @@ export default function HistoryScreen() {
                       // Symptom & mood checklist details rendering
                       <View style={styles.checkinDetails}>
                         <View style={styles.detailRow}>
-                          <Text style={[styles.detailLabel, { color: activeColors.textMuted }]}>Logged Symptoms:</Text>
-                          <Text style={[styles.detailValueText, { color: activeColors.text }]}>
+                          <Text
+                            style={[
+                              styles.detailLabel,
+                              { color: activeColors.textMuted },
+                            ]}
+                          >
+                            Logged Symptoms:
+                          </Text>
+                          <Text
+                            style={[
+                              styles.detailValueText,
+                              { color: activeColors.text },
+                            ]}
+                          >
                             {formatSymptomsList(item.details.symptoms)}
                           </Text>
                         </View>
                         {item.details.notes ? (
                           <View style={styles.detailRow}>
-                            <Text style={[styles.detailLabel, { color: activeColors.textMuted }]}>Notes / Voice memo:</Text>
-                            <Text style={[styles.notesBodyText, { color: activeColors.text, backgroundColor: activeColors.surface2 }]}>
+                            <Text
+                              style={[
+                                styles.detailLabel,
+                                { color: activeColors.textMuted },
+                              ]}
+                            >
+                              Notes / Voice memo:
+                            </Text>
+                            <Text
+                              style={[
+                                styles.notesBodyText,
+                                {
+                                  color: activeColors.text,
+                                  backgroundColor: activeColors.surface2,
+                                },
+                              ]}
+                            >
                               "{item.details.notes}"
                             </Text>
                           </View>

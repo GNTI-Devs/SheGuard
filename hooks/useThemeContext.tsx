@@ -6,7 +6,13 @@
  *   const { colorScheme, setColorScheme } = useThemeContext();
  *   // colorScheme is 'light' | 'dark'
  */
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from 'react';
 import { useColorScheme as useSystemColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -29,7 +35,8 @@ const STORAGE_KEY = 'theme_override';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useSystemColorScheme() ?? 'dark';
-  const [themePreference, setThemePreferenceState] = useState<ThemePreference>('system');
+  const [themePreference, setThemePreferenceState] =
+    useState<ThemePreference>('system');
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((val) => {
@@ -48,7 +55,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     themePreference === 'system' ? systemScheme : themePreference;
 
   return (
-    <ThemeContext.Provider value={{ colorScheme, themePreference, setThemePreference }}>
+    <ThemeContext.Provider
+      value={{ colorScheme, themePreference, setThemePreference }}
+    >
       {children}
     </ThemeContext.Provider>
   );

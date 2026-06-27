@@ -53,20 +53,42 @@ export function useCustomAlert() {
   const getAccentColor = () => {
     if (!config) return activeColors.primary;
     switch (config.type) {
-      case 'danger': return activeColors.emergency;
-      case 'warning': return '#D48C45';
-      case 'success': return activeColors.success;
-      default: return activeColors.primary;
+      case 'danger':
+        return activeColors.emergency;
+      case 'warning':
+        return '#D48C45';
+      case 'success':
+        return activeColors.success;
+      default:
+        return activeColors.primary;
     }
   };
 
   const getIcon = () => {
     if (!config) return null;
     switch (config.type) {
-      case 'danger': return <Ionicons name="warning" size={24} color={getAccentColor()} />;
-      case 'warning': return <Ionicons name="alert-circle" size={24} color={getAccentColor()} />;
-      case 'success': return <Ionicons name="checkmark-circle" size={24} color={getAccentColor()} />;
-      default: return <Ionicons name="information-circle" size={24} color={getAccentColor()} />;
+      case 'danger':
+        return <Ionicons name="warning" size={24} color={getAccentColor()} />;
+      case 'warning':
+        return (
+          <Ionicons name="alert-circle" size={24} color={getAccentColor()} />
+        );
+      case 'success':
+        return (
+          <Ionicons
+            name="checkmark-circle"
+            size={24}
+            color={getAccentColor()}
+          />
+        );
+      default:
+        return (
+          <Ionicons
+            name="information-circle"
+            size={24}
+            color={getAccentColor()}
+          />
+        );
     }
   };
 
@@ -74,8 +96,7 @@ export function useCustomAlert() {
     if (!config) return null;
     const buttonsList = config.buttons ?? [{ text: 'OK' }];
     const shouldStackVertically =
-      buttonsList.length > 2 ||
-      buttonsList.some((btn) => btn.text.length > 18);
+      buttonsList.length > 2 || buttonsList.some((btn) => btn.text.length > 18);
 
     return (
       <Modal
@@ -103,13 +124,22 @@ export function useCustomAlert() {
             ]}
           >
             {/* Close Button top-right */}
-            <TouchableOpacity style={styles.closeBtn} onPress={dismiss} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.closeBtn}
+              onPress={dismiss}
+              activeOpacity={0.7}
+            >
               <Ionicons name="close" size={22} color={activeColors.textMuted} />
             </TouchableOpacity>
 
             {/* Header: Icon + Title */}
             <View style={styles.cardHeader}>
-              <View style={[styles.iconCircle, { backgroundColor: getAccentColor() + '12' }]}>
+              <View
+                style={[
+                  styles.iconCircle,
+                  { backgroundColor: getAccentColor() + '12' },
+                ]}
+              >
                 {getIcon()}
               </View>
               <View style={styles.headerText}>
@@ -127,15 +157,13 @@ export function useCustomAlert() {
             {/* Buttons Layout */}
             <View
               style={
-                shouldStackVertically
-                  ? styles.buttonsColumn
-                  : styles.buttonsRow
+                shouldStackVertically ? styles.buttonsColumn : styles.buttonsRow
               }
             >
               {buttonsList.map((btn, idx) => {
                 const isCancel = btn.style === 'cancel';
                 const isDestructive = btn.style === 'destructive';
-                
+
                 // Styling based on button type
                 let btnBg = 'transparent';
                 let btnTextColor = getAccentColor();
@@ -169,7 +197,7 @@ export function useCustomAlert() {
                         backgroundColor: btnBg,
                         borderWidth,
                         borderColor,
-                      }
+                      },
                     ]}
                     activeOpacity={0.85}
                   >

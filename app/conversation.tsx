@@ -94,7 +94,12 @@ export default function ConversationScreen() {
         // This ensures the agent's voice plays through the main speaker
         await AudioSession.configureAudio({
           android: {
-            preferredOutputList: ['speaker', 'bluetooth', 'headset', 'earpiece'],
+            preferredOutputList: [
+              'speaker',
+              'bluetooth',
+              'headset',
+              'earpiece',
+            ],
             audioTypeOptions: AndroidAudioTypePresets.communication,
           },
           ios: {
@@ -117,7 +122,9 @@ export default function ConversationScreen() {
     connectTimeoutRef.current = setTimeout(() => {
       if (!cancelled && (!room || roomStateRef.current !== 'connected')) {
         setConnectionFailed(true);
-        setFailReason('Connection timed out. The assistant could not be reached.');
+        setFailReason(
+          'Connection timed out. The assistant could not be reached.'
+        );
       }
     }, 30000);
 
@@ -167,7 +174,9 @@ export default function ConversationScreen() {
       connectTimeoutRef.current = setTimeout(() => {
         if (!room || room.state !== 'connected') {
           setConnectionFailed(true);
-          setFailReason('Connection timed out. Check your network and try again.');
+          setFailReason(
+            'Connection timed out. Check your network and try again.'
+          );
         }
       }, 30000);
     }, 500);
@@ -176,31 +185,69 @@ export default function ConversationScreen() {
   // ── Failed / timed-out state ──
   if (connectionFailed) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: activeColors.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: activeColors.background }]}
+      >
         <View style={styles.workspace}>
           <View style={styles.voiceWorkspace}>
-            <View style={[styles.visualizerCard, { backgroundColor: activeColors.surface, borderColor: activeColors.border }]}>
-              <Ionicons name="wifi-outline" size={48} color={activeColors.textMuted} />
+            <View
+              style={[
+                styles.visualizerCard,
+                {
+                  backgroundColor: activeColors.surface,
+                  borderColor: activeColors.border,
+                },
+              ]}
+            >
+              <Ionicons
+                name="wifi-outline"
+                size={48}
+                color={activeColors.textMuted}
+              />
             </View>
-            <Text style={[styles.instructionText, { color: activeColors.text, fontWeight: '600', fontSize: 16 }]}>
+            <Text
+              style={[
+                styles.instructionText,
+                { color: activeColors.text, fontWeight: '600', fontSize: 16 },
+              ]}
+            >
               Could not connect
             </Text>
-            <Text style={[styles.instructionText, { color: activeColors.textMuted, marginTop: 8 }]}>
+            <Text
+              style={[
+                styles.instructionText,
+                { color: activeColors.textMuted, marginTop: 8 },
+              ]}
+            >
               {failReason}
             </Text>
             <TouchableOpacity
               onPress={handleRetry}
-              style={[styles.retryButton, { backgroundColor: activeColors.primary, marginTop: 24 }]}
+              style={[
+                styles.retryButton,
+                { backgroundColor: activeColors.primary, marginTop: 24 },
+              ]}
             >
               <Ionicons name="refresh" size={18} color="#fff" />
               <Text style={styles.retryButtonText}>Try Again</Text>
             </TouchableOpacity>
           </View>
         </View>
-        <View style={[styles.controlsBar, { backgroundColor: activeColors.surface, borderColor: activeColors.border }]}>
+        <View
+          style={[
+            styles.controlsBar,
+            {
+              backgroundColor: activeColors.surface,
+              borderColor: activeColors.border,
+            },
+          ]}
+        >
           <TouchableOpacity
             onPress={handleCancelConnection}
-            style={[styles.hangupButton, { backgroundColor: activeColors.emergency, alignSelf: 'center' }]}
+            style={[
+              styles.hangupButton,
+              { backgroundColor: activeColors.emergency, alignSelf: 'center' },
+            ]}
           >
             <Ionicons name="close" size={28} color="#FFFFFF" />
           </TouchableOpacity>
@@ -211,28 +258,72 @@ export default function ConversationScreen() {
 
   // ── Connecting / waiting state ──
   if (!room || roomState !== 'connected') {
-    const statusMsg = connection.emergencyMode ? '⚠️ PREECLAMPSIA ALERT!' : 'Connecting...';
+    const statusMsg = connection.emergencyMode
+      ? '⚠️ PREECLAMPSIA ALERT!'
+      : 'Connecting...';
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: activeColors.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: activeColors.background }]}
+      >
         <View style={styles.topBar}>
-          <Text style={[styles.statusText, { color: connection.emergencyMode ? activeColors.emergency : activeColors.text }]}>
+          <Text
+            style={[
+              styles.statusText,
+              {
+                color: connection.emergencyMode
+                  ? activeColors.emergency
+                  : activeColors.text,
+              },
+            ]}
+          >
             {statusMsg}
           </Text>
         </View>
         <View style={styles.workspace}>
           <View style={styles.voiceWorkspace}>
-            <View style={[styles.visualizerCard, { backgroundColor: activeColors.surface, borderColor: connection.emergencyMode ? activeColors.emergency : activeColors.border }]}>
-              <ActivityIndicator size="large" color={connection.emergencyMode ? '#FFFFFF' : activeColors.primary} />
+            <View
+              style={[
+                styles.visualizerCard,
+                {
+                  backgroundColor: activeColors.surface,
+                  borderColor: connection.emergencyMode
+                    ? activeColors.emergency
+                    : activeColors.border,
+                },
+              ]}
+            >
+              <ActivityIndicator
+                size="large"
+                color={
+                  connection.emergencyMode ? '#FFFFFF' : activeColors.primary
+                }
+              />
             </View>
-            <Text style={[styles.instructionText, { color: activeColors.textMuted }]}>
+            <Text
+              style={[
+                styles.instructionText,
+                { color: activeColors.textMuted },
+              ]}
+            >
               Starting your session...
             </Text>
           </View>
         </View>
-        <View style={[styles.controlsBar, { backgroundColor: activeColors.surface, borderColor: activeColors.border }]}>
+        <View
+          style={[
+            styles.controlsBar,
+            {
+              backgroundColor: activeColors.surface,
+              borderColor: activeColors.border,
+            },
+          ]}
+        >
           <TouchableOpacity
             onPress={handleCancelConnection}
-            style={[styles.hangupButton, { backgroundColor: activeColors.emergency, alignSelf: 'center' }]}
+            style={[
+              styles.hangupButton,
+              { backgroundColor: activeColors.emergency, alignSelf: 'center' },
+            ]}
           >
             <Ionicons name="close" size={28} color="#FFFFFF" />
           </TouchableOpacity>
@@ -259,7 +350,11 @@ function ConversationRoomContent({ room }: { room: any }) {
   useIOSAudioManagement(room, true);
 
   const remoteParticipants = useRemoteParticipants();
-  const { state: agentState, microphoneTrack: agentMicTrack, cameraTrack } = useAgent();
+  const {
+    state: agentState,
+    microphoneTrack: agentMicTrack,
+    cameraTrack,
+  } = useAgent();
   const { messages } = useSessionMessages();
   const { isMicrophoneEnabled, localParticipant } = useLocalParticipant();
   const micToggle = useTrackToggle({ source: Track.Source.Microphone });
@@ -364,7 +459,8 @@ function ConversationRoomContent({ room }: { room: any }) {
   };
 
   const handleCallDoctor = () => {
-    const phone = profile?.doctorPhone || profile?.emergencyContacts?.[0] || '112';
+    const phone =
+      profile?.doctorPhone || profile?.emergencyContacts?.[0] || '112';
     Linking.openURL(`tel:${phone}`);
   };
 
@@ -484,8 +580,21 @@ function ConversationRoomContent({ room }: { room: any }) {
                     style={styles.visualizer}
                   />
                 ) : (
-                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                    <ActivityIndicator size="large" color={connection.emergencyMode ? '#FFFFFF' : activeColors.primary} />
+                  <View
+                    style={{
+                      flex: 1,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <ActivityIndicator
+                      size="large"
+                      color={
+                        connection.emergencyMode
+                          ? '#FFFFFF'
+                          : activeColors.primary
+                      }
+                    />
                   </View>
                 )}
               </View>
@@ -674,7 +783,9 @@ function ConversationRoomContent({ room }: { room: any }) {
                     { color: activeColors.emergency },
                   ]}
                 >
-                  {profile?.doctorPhone ? 'Call My Doctor' : 'Call Doctor / Hospital'}
+                  {profile?.doctorPhone
+                    ? 'Call My Doctor'
+                    : 'Call Doctor / Hospital'}
                 </Text>
               </TouchableOpacity>
 

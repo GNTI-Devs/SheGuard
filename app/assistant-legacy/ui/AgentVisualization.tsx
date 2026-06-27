@@ -21,7 +21,6 @@ export default function AgentVisualization({ style }: AgentVisualizationProps) {
   const [barWidth, setBarWidth] = useState(0);
   const [barBorderRadius, setBarBorderRadius] = useState(0);
 
-
   const layoutCallback = useCallback((event: LayoutChangeEvent) => {
     const { x, y, width, height } = event.nativeEvent.layout;
     console.log(x, y, width, height);
