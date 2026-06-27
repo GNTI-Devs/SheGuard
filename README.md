@@ -34,6 +34,24 @@ SheGuard is **not a replacement for a doctor** — it is a triage and guidance t
 
 ---
 
+## 📸 Screenshots
+
+<p align="center">
+  <img src="./assets/screenshots/01_home.png" alt="Home Screen" width="200" />
+  &nbsp;&nbsp;
+  <img src="./assets/screenshots/02_tips.png" alt="Pregnancy Guide" width="200" />
+  &nbsp;&nbsp;
+  <img src="./assets/screenshots/03_history.png" alt="Health Journal" width="200" />
+  &nbsp;&nbsp;
+  <img src="./assets/screenshots/05_profile.png" alt="Profile & Settings" width="200" />
+</p>
+
+<p align="center">
+  <em>Home &nbsp;•&nbsp; Pregnancy Guide &nbsp;•&nbsp; Health Journal &nbsp;•&nbsp; Profile</em>
+</p>
+
+---
+
 ## 🏆 Hackathon Project
 
 This application was conceived, designed, and built as a **hackathon project** by:
@@ -320,6 +338,8 @@ In summary:
 |---|---|---|
 | `user_id` | String | Appwrite user UID |
 | `display_name` | String | User's full name |
+| `phone` | String | User's own phone number |
+| `avatar` | String | Avatar identifier (e.g. `avatar_1`) |
 | `language` | String | Language code (`en`, `ha`, `yo`, `ig`, `pcm`) |
 | `pregnancy_month` | Integer | Current pregnancy month (1–9) |
 | `due_date` | String | ISO date string |
@@ -348,6 +368,17 @@ In summary:
 | `datetime` | String | ISO datetime string |
 | `location` | String | Optional clinic/facility name |
 | `completed` | Boolean | Whether the appointment was attended |
+
+#### Collection: `daily_checkins`
+| Attribute | Type | Notes |
+|---|---|---|
+| `checkin_id` | String | Unique check-in ID |
+| `user_id` | String | Owner's UID |
+| `date` | String | ISO date string (YYYY-MM-DD) |
+| `mood` | String | User's mood (`great`, `good`, `tired`, `unwell`, `anxious`) |
+| `symptoms` | String[] | Array of symptom strings |
+| `notes` | String | Free-text notes (optional) |
+| `created_at` | String | ISO timestamp |
 
 4. Deploy the `generate-livekit-token` serverless function (see the guide for full code and environment variable setup).
 
@@ -421,9 +452,9 @@ cd android
 ./gradlew assembleRelease
 ```
 
-Output: `android/app/build/outputs/apk/release/app-release-unsigned.apk`
+Output: `android/app/build/outputs/apk/release/*.apk`
 
-> For a signed APK, configure your keystore in `android/app/build.gradle` and run `assembleRelease` with signing config set.
+> For a signed APK, configure your keystore in `android/app/build.gradle` and run `assembleRelease` with signing config set. The output file will be named `app-release.apk` when signed, or `app-release-unsigned.apk` when unsigned.
 
 ---
 

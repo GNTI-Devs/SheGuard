@@ -5,21 +5,22 @@
 
 export const Colors = {
   light: {
-    background:   '#FAF6EE',  // Warm cream
-    surface:      '#FFF0EA',  // Soft peach surface
-    surface2:     '#FFE4DA',  // Elevated peach
-    primary:      '#B04030',  // Deep terracotta
-    primaryMuted: '#D4695A',  // Lighter terracotta
-    text:         '#2E1E1B',  // Cocoa black
-    textMuted:    '#7A5C56',  // Muted rose-brown
-    success:      '#4A7A52',  // Sage green
-    emergency:    '#C0392B',  // Crimson red
-    border:       '#DEC5BE',  // Warm divider
-    tint:         '#B04030',  // Deep terracotta tint
-    icon:         '#7A5C56',  // Muted rose-brown icon
-    tabIconDefault: '#7A5C56',
-    tabIconSelected: '#B04030',
+    background:   '#FFF8F6',  // Warmest blush white
+    surface:      '#FFFFFF',  // Pure white cards
+    surface2:     '#FFF0EC',  // Soft rose-tinted elevated surface
+    primary:      '#A0405A',  // Deep rose / raspberry
+    primaryMuted: '#C47A8A',  // Lighter rose for secondary elements
+    text:         '#2D1520',  // Very dark plum — warm, not harsh black
+    textMuted:    '#8A5A67',  // Muted mauve-rose for subtitles
+    success:      '#4A7A52',  // Sage green (kept for safety indicators)
+    emergency:    '#B52B2B',  // Deep crimson for danger signs
+    border:       '#F0D5DB',  // Soft rose divider
+    tint:         '#A0405A',  // Deep rose tint
+    icon:         '#8A5A67',  // Muted mauve icon
+    tabIconDefault: '#8A5A67',
+    tabIconSelected: '#A0405A',
   },
+
   dark: {
     background:   '#1E1412',  // Deep cocoa black
     surface:      '#2E1E1B',  // Chocolate surface
