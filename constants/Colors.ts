@@ -22,20 +22,20 @@ export const Colors = {
   },
 
   dark: {
-    background:   '#1E1412',  // Deep cocoa black
-    surface:      '#2E1E1B',  // Chocolate surface
-    surface2:     '#3D2723',  // Elevated chocolate
-    primary:      '#C85A46',  // Terracotta
-    primaryMuted: '#9B3D2C',  // Dark terracotta
-    text:         '#F4EFEB',  // Cream white
-    textMuted:    '#BCAEAA',  // Muted rose
-    success:      '#76937C',  // Sage green
-    emergency:    '#D24B3E',  // Red alert
-    border:       '#4A2E2A',  // Dark divider
-    tint:         '#C85A46',  // Terracotta tint
-    icon:         '#BCAEAA',  // Muted rose icon
-    tabIconDefault: '#BCAEAA',
-    tabIconSelected: '#C85A46',
+    background:   '#1A0F18',  // Deep plum-black (rich, not flat black)
+    surface:      '#2A1828',  // Dark plum surface
+    surface2:     '#3D2038',  // Elevated rose-plum
+    primary:      '#D4607A',  // Vibrant raspberry — pops on dark bg
+    primaryMuted: '#A0405A',  // Medium rose for secondary elements
+    text:         '#FDF4F7',  // Warm white with a rose tint
+    textMuted:    '#C4A0AC',  // Muted rose-lavender for subtitles
+    success:      '#6AAF7A',  // Brighter sage green for dark bg
+    emergency:    '#E05050',  // Vivid red — clear danger on dark
+    border:       '#5A2A40',  // Dark rose divider
+    tint:         '#D4607A',  // Raspberry tint
+    icon:         '#C4A0AC',  // Muted rose icon
+    tabIconDefault: '#C4A0AC',
+    tabIconSelected: '#D4607A',
   },
 };
 
