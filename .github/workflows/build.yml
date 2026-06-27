@@ -67,6 +67,11 @@ jobs:
       - name: Install Dependencies
         run: bun install --frozen-lockfile
 
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.2'
+
       - name: Generate iOS Native Directory (Expo Prebuild)
         run: bunx expo prebuild --no-install --platform ios
 
