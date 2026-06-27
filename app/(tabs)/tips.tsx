@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -14,6 +14,8 @@ import { Colors } from '@/constants/Colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import * as Speech from 'expo-speech';
+
 
 if (
   Platform.OS === 'android' &&
@@ -176,6 +178,7 @@ export default function TipsScreen() {
 
   const [expandedMonthId, setExpandedMonthId] = useState<number | null>(null);
   const [expandedTipId, setExpandedTipId] = useState<string | null>(null);
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
 
   // Sync expandedMonthId to user's current pregnancy month once the profile loads
   React.useEffect(() => {
@@ -183,6 +186,44 @@ export default function TipsScreen() {
       setExpandedMonthId(profile.pregnancyMonth);
     }
   }, [profile?.pregnancyMonth]);
+
+  // Clean up and stop speaking when screen unmounts
+  useEffect(() => {
+    return () => {
+      Speech.stop();
+    };
+  }, []);
+
+  const handleSpeakTip = async (tip: TipItem) => {
+    try {
+      if (speakingId === tip.id) {
+        await Speech.stop();
+        setSpeakingId(null);
+      } else {
+        await Speech.stop();
+        setSpeakingId(tip.id);
+        
+        const langCode = profile?.language || 'en';
+        // Map language code to standard TTS language locale
+        let ttsLang = 'en-US';
+        if (langCode === 'ha') ttsLang = 'ha-NE';
+        else if (langCode === 'yo') ttsLang = 'yo-NG';
+        else if (langCode === 'ig') ttsLang = 'ig-NG';
+        else if (langCode === 'pcm') ttsLang = 'en-NG'; // Nigerian English fallback for Pidgin
+
+        await Speech.speak(`${tip.title}. ${tip.content}`, {
+          language: ttsLang,
+          onDone: () => setSpeakingId(null),
+          onError: () => setSpeakingId(null),
+          onStopped: () => setSpeakingId(null),
+        });
+      }
+    } catch (e) {
+      console.warn('TTS error:', e);
+      setSpeakingId(null);
+    }
+  };
+
 
   const handleToggleMonth = (month: number) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -379,6 +420,31 @@ export default function TipsScreen() {
                               <Text style={[styles.tipContentText, { color: activeColors.text }]}>
                                 {tip.content}
                               </Text>
+                              
+                              {/* Audio Reader Action Button */}
+                              <TouchableOpacity
+                                onPress={() => handleSpeakTip(tip)}
+                                style={[
+                                  styles.speakButton,
+                                  { backgroundColor: speakingId === tip.id ? activeColors.primary : activeColors.surface2 }
+                                ]}
+                                activeOpacity={0.8}
+                              >
+                                <Ionicons
+                                  name={speakingId === tip.id ? 'stop-circle' : 'volume-high'}
+                                  size={16}
+                                  color={speakingId === tip.id ? '#FFFFFF' : activeColors.primary}
+                                />
+                                <Text
+                                  style={[
+                                    styles.speakButtonText,
+                                    { color: speakingId === tip.id ? '#FFFFFF' : activeColors.primary }
+                                  ]}
+                                >
+                                  {speakingId === tip.id ? 'Stop Reading' : 'Read Aloud'}
+                                </Text>
+                              </TouchableOpacity>
+
                               <Text style={[styles.tipDisclaimer, { color: activeColors.textMuted }]}>
                                 ⓘ This is general guidance. Your health worker's advice for your specific situation always takes priority.
                               </Text>
@@ -499,5 +565,20 @@ const styles = StyleSheet.create({
   tipTitleText: { fontSize: 14, fontWeight: 'bold' },
   tipExpandBody: { padding: 12, borderTopWidth: 0.5 },
   tipContentText: { fontSize: 13, lineHeight: 19, marginBottom: 10 },
+  speakButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+  },
+  speakButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   tipDisclaimer: { fontSize: 10, lineHeight: 14, fontStyle: 'italic' },
 });

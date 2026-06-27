@@ -79,30 +79,38 @@ function RouteGuard() {
   );
 }
 
-export default function RootLayout() {
+function RootLayoutInner() {
   const { colorScheme } = useThemeContext();
+  const activeColors = Colors[colorScheme ?? 'light'];
 
   const customNavigationTheme = {
     ...(colorScheme === 'dark' ? DarkTheme : DefaultTheme),
     colors: {
       ...(colorScheme === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
-      background: Colors[colorScheme ?? 'light'].background,
-      card: Colors[colorScheme ?? 'light'].surface,
-      text: Colors[colorScheme ?? 'light'].text,
-      border: Colors[colorScheme ?? 'light'].border,
+      background: activeColors.background,
+      card: activeColors.surface,
+      text: activeColors.text,
+      border: activeColors.border,
     },
   };
 
   return (
+    <ThemeProvider value={customNavigationTheme}>
+      <RouteGuard />
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+    </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
     <AppThemeProvider>
       <StorageProvider>
         <ConnectionProvider>
-          <ThemeProvider value={customNavigationTheme}>
-            <RouteGuard />
-            <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-          </ThemeProvider>
+          <RootLayoutInner />
         </ConnectionProvider>
       </StorageProvider>
     </AppThemeProvider>
   );
 }
+

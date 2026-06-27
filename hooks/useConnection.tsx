@@ -17,11 +17,12 @@ const appwriteClient = new Client()
 
 const appwriteFunctions = new Functions(appwriteClient);
 
-// Read from Expo environment variables
+// Read from Expo environment variables with fallback defaults for production release builds
 const sandboxID = process.env.EXPO_PUBLIC_LIVEKIT_SANDBOX_ID || '';
-const agentName = process.env.EXPO_PUBLIC_LIVEKIT_AGENT_NAME || undefined;
-const hardcodedUrl = process.env.EXPO_PUBLIC_LIVEKIT_URL || '';
+const agentName = process.env.EXPO_PUBLIC_LIVEKIT_AGENT_NAME || 'sheguard-ai';
+const hardcodedUrl = process.env.EXPO_PUBLIC_LIVEKIT_URL || 'wss://novasync-novasync-9ozn4l47.livekit.cloud';
 const hardcodedToken = process.env.EXPO_PUBLIC_LIVEKIT_TOKEN || '';
+
 
 interface ConnectionContextType {
   isConnectionActive: boolean;
