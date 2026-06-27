@@ -1,0 +1,10 @@
+{
+  "name": "generate-livekit-token",
+  "version": "1.0.0",
+  "description": "Appwrite serverless function to generate LiveKit client tokens",
+  "main": "src/main.js",
+  "type": "module",
+  "dependencies": {
+    "livekit-server-sdk": "^2.9.2"
+  }
+}
