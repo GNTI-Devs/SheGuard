@@ -40,11 +40,14 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
 
+      - name: List APK output files
+        run: find android/app/build/outputs/apk -name "*.apk" | tee /tmp/apk_list.txt
+
       - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: sheguard-android-release
-          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
   build-ios:
@@ -91,6 +94,7 @@ jobs:
             -scheme "$SCHEME" \
             -configuration Release \
             -sdk iphonesimulator \
+            -derivedDataPath ./build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -99,14 +103,15 @@ jobs:
 
       - name: Compress iOS App Bundle
         run: |
-          cd ios/build/Build/Products/Release-iphonesimulator
-          APP_NAME=$(find . -maxdepth 1 -name "*.app" | head -n 1)
-          echo "Compressing iOS App package: $APP_NAME"
-          zip -r SheGuard-iOS-Simulator.zip "$APP_NAME"
+          PRODUCTS_DIR=$(find ios/build/Build/Products -maxdepth 1 -name "*iphonesimulator" -type d | head -n 1)
+          echo "Products directory: $PRODUCTS_DIR"
+          APP_PATH=$(find "$PRODUCTS_DIR" -maxdepth 1 -name "*.app" | head -n 1)
+          echo "Compressing iOS App package: $APP_PATH"
+          zip -r ios/SheGuard-iOS-Simulator.zip "$APP_PATH"
 
       - name: Upload iOS App Artifact
         uses: actions/upload-artifact@v4
         with:
           name: sheguard-ios-release
-          path: ios/build/Build/Products/Release-iphonesimulator/SheGuard-iOS-Simulator.zip
+          path: ios/SheGuard-iOS-Simulator.zip
           if-no-files-found: error
