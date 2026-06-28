@@ -90,6 +90,8 @@
 - Remapped the profile screen's audio guide key to `'settings'` (loading settings.wav instead of onboarding profile_setup.wav).
 - Resolved Kotlin compilation Metaspace OutOfMemory crashes in CI/CD by expanding JVM memory options in `gradle.properties` (Gradle Metaspace to 1024m and Kotlin daemon to 1024m).
 - Automated build publishing to GitHub Releases: added a publish job to `build.yml` that pulls the Android APK and iOS zip files on every push to `main` and creates a unique release tag (v1.0.0-b[run_number]) to prevent overwriting.
+- Fixed the voice room leakage/privacy bug: replaced the hardcoded `sheguard-room` string in `useConnection.tsx` with dynamic, randomized room names (`sheguard-room-[identity]-[rand]`). The Appwrite token generator dispatches the `sheguard-ai` agent to this private room, isolating each user session.
+- Updated `conversation.tsx` to log the actual connected room name (recovering `room.name` from the LiveKit session) instead of dummy timestamp names.
 
 ## Next Up
 

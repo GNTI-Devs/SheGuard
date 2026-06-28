@@ -439,7 +439,7 @@ function ConversationRoomContent({ room }: { room: any }) {
 
         await addConversation({
           id: `conv-${Date.now()}`,
-          roomName: `sheguard-room-${Date.now()}`,
+          roomName: room?.name || `sheguard-room-${Date.now()}`,
           startedAt: sessionStartTime,
           endedAt: new Date().toISOString(),
           messages: formattedMessages,

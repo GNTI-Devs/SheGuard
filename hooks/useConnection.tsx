@@ -254,9 +254,10 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
           }
         }
 
+        const uniqueRoom = `sheguard-room-${identity.replace(/[^a-z0-9]/g, '-')}-${Math.floor(1000 + Math.random() * 9000)}`;
         const response = await appwriteFunctions.createExecution(
           'generate-livekit-token',
-          JSON.stringify({ room: 'sheguard-room', identity, language })
+          JSON.stringify({ room: uniqueRoom, identity, language })
         );
 
         const body = JSON.parse(response.responseBody || '{}');
