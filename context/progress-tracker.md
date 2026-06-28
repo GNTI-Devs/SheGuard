@@ -82,6 +82,8 @@
 - Integrated `useScreenAudio` in all screens for automatic narration playback on first visits.
 - Created premium floating `AudioGuideIndicator` SpeakingIndicator component with animated waveform bars (pulse when playing, freeze when paused), play/pause toggles, and clear/stop buttons.
 - Integrated automatic agent dispatch inside the serverless Appwrite function (`scratch/appwrite-function/src/main.js`) using `AgentDispatchClient` to spin up `sheguard-ai` on token request.
+- Made the audio guide system fully context-aware: when the user confirms audio guidance from the onboarding drawer prompt, it immediately plays the narration for the *current* screen (no hardcoded welcome playback).
+- Replaced emoji elements in the onboarding modal with professional `Ionicons` components (volume-high, mic).
 
 ## Next Up
 
