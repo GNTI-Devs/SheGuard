@@ -27,7 +27,8 @@ import {
   useThemeContext,
 } from '@/hooks/useThemeContext';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
-import { AudioPlayerProvider } from '@/hooks/AudioPlayerContext';
+import { AudioPlayerProvider, useGlobalAudio } from '@/hooks/AudioPlayerContext';
+import { Ionicons } from '@expo/vector-icons';
 
 const AUDIO_ONBOARDING_KEY = 'onboarding_audio_shown';
 const GUIDE_ENABLED_KEY = 'audio_guide_enabled';
@@ -36,7 +37,7 @@ const GUIDE_ENABLED_KEY = 'audio_guide_enabled';
 function AudioOnboardingModal() {
   const { colorScheme } = useThemeContext();
   const activeColors = Colors[colorScheme ?? 'dark'];
-  const { play } = useAudioPlayer();
+  const { setAudioGuideEnabled } = useGlobalAudio();
   const [visible, setVisible] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(60)).current;
@@ -69,10 +70,7 @@ function AudioOnboardingModal() {
 
   const dismiss = async (enableAudio: boolean) => {
     await AsyncStorage.setItem(AUDIO_ONBOARDING_KEY, 'true').catch(() => {});
-    await AsyncStorage.setItem(
-      GUIDE_ENABLED_KEY,
-      enableAudio ? 'true' : 'false'
-    ).catch(() => {});
+    await setAudioGuideEnabled(enableAudio);
 
     Animated.timing(fadeAnim, {
       toValue: 0,
@@ -80,10 +78,6 @@ function AudioOnboardingModal() {
       useNativeDriver: true,
     }).start(() => {
       setVisible(false);
-      if (enableAudio) {
-        // Small delay so modal fully closes before audio starts
-        setTimeout(() => play('welcome'), 600);
-      }
     });
   };
 
@@ -105,10 +99,10 @@ function AudioOnboardingModal() {
           <View
             style={[
               styles.iconCircle,
-              { backgroundColor: activeColors.primaryMuted },
+              { backgroundColor: activeColors.primaryMuted + '22' },
             ]}
           >
-            <Text style={styles.iconEmoji}>🔊</Text>
+            <Ionicons name="volume-high" size={28} color={activeColors.primary} />
           </View>
 
           <Text style={[styles.title, { color: activeColors.text }]}>
@@ -129,7 +123,10 @@ function AudioOnboardingModal() {
             onPress={() => dismiss(true)}
             activeOpacity={0.85}
           >
-            <Text style={styles.primaryBtnText}>Yes, guide me 🎙️</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.primaryBtnText}>Yes, guide me</Text>
+              <Ionicons name="mic" size={18} color="#fff" />
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -273,9 +270,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
-  },
-  iconEmoji: {
-    fontSize: 30,
   },
   title: {
     fontSize: 20,

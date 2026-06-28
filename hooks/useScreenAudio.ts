@@ -1,8 +1,9 @@
 /**
  * useScreenAudio — auto-plays an audio guide on the first visit to a screen.
  *
- * Uses the global AudioPlayerContext so the floating SpeakingIndicator can
- * observe playback state across all screens.
+ * Listens to the global audioGuideEnabled state from AudioPlayerContext so that
+ * when the user turns it on (e.g. from the onboarding prompt modal), the guide
+ * immediately starts playing for the active screen.
  */
 
 import { useEffect, useRef } from 'react';
@@ -11,33 +12,31 @@ import { AudioGuideKey } from './useAudioPlayer';
 import { useGlobalAudio } from './AudioPlayerContext';
 
 const AUTOPLAY_DELAY_MS = 1500;
-const GUIDE_ENABLED_KEY = 'audio_guide_enabled';
 
 export function useScreenAudio(screenKey: AudioGuideKey) {
-  const { play, stop, isPlaying, activeKey } = useGlobalAudio();
+  const { play, stop, isPlaying, activeKey, audioGuideEnabled } = useGlobalAudio();
   const hasAutoPlayed = useRef(false);
 
   useEffect(() => {
-    if (hasAutoPlayed.current) return;
+    // 1. Wait until preferences are loaded, and make sure guide is enabled
+    if (audioGuideEnabled === null || !audioGuideEnabled || hasAutoPlayed.current) {
+      return;
+    }
 
     let timer: ReturnType<typeof setTimeout>;
 
     (async () => {
       try {
-        // 1. Check global toggle (default: enabled)
-        const guideEnabled = await AsyncStorage.getItem(GUIDE_ENABLED_KEY);
-        if (guideEnabled === 'false') return;
-
-        // 2. Check per-screen flag
+        // 2. Check if user already heard the guide for this screen
         const playedKey = `audio_played_${screenKey}`;
         const alreadyPlayed = await AsyncStorage.getItem(playedKey);
         if (alreadyPlayed === 'true') return;
 
-        // 3. Schedule auto-play
+        // 3. Play screen audio guide
         hasAutoPlayed.current = true;
         timer = setTimeout(async () => {
           await play(screenKey);
-          // 4. Mark as heard
+          // 4. Save played flag
           await AsyncStorage.setItem(playedKey, 'true').catch(() => {});
         }, AUTOPLAY_DELAY_MS);
       } catch (_) {}
@@ -46,7 +45,7 @@ export function useScreenAudio(screenKey: AudioGuideKey) {
     return () => {
       clearTimeout(timer);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [audioGuideEnabled, screenKey, play]);
 
   return { play, stop, isPlaying, activeKey };
 }

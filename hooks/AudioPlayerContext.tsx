@@ -3,6 +3,7 @@
  *
  * Centralises all audio guide playback into a single shared Sound instance.
  * Supports play, stop, pause, resume, and tracking of active key / states.
+ * Also holds the global audioGuideEnabled preference and syncs it to AsyncStorage.
  */
 
 import React, {
@@ -15,6 +16,7 @@ import React, {
 } from 'react';
 import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AudioGuideKey } from './useAudioPlayer';
 
 interface AudioPlayerContextType {
@@ -25,6 +27,8 @@ interface AudioPlayerContextType {
   isPlaying: boolean;
   isPaused: boolean;
   activeKey: AudioGuideKey | null;
+  audioGuideEnabled: boolean | null;
+  setAudioGuideEnabled: (enabled: boolean) => Promise<void>;
 }
 
 const AudioPlayerContext = createContext<AudioPlayerContextType>({
@@ -35,9 +39,12 @@ const AudioPlayerContext = createContext<AudioPlayerContextType>({
   isPlaying: false,
   isPaused: false,
   activeKey: null,
+  audioGuideEnabled: null,
+  setAudioGuideEnabled: async () => {},
 });
 
 const ANDROID_SETTLE_MS = 150;
+const GUIDE_ENABLED_KEY = 'audio_guide_enabled';
 
 const AUDIO_ASSETS: Record<AudioGuideKey, any> = {
   welcome: require('@/assets/audio/welcome.wav'),
@@ -58,8 +65,22 @@ export function AudioPlayerProvider({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [activeKey, setActiveKey] = useState<AudioGuideKey | null>(null);
+  const [audioGuideEnabled, setAudioGuideEnabledState] = useState<boolean | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
 
+  // Load global setting on mount
+  useEffect(() => {
+    AsyncStorage.getItem(GUIDE_ENABLED_KEY)
+      .then((val) => {
+        // Default to true if not set
+        setAudioGuideEnabledState(val !== 'false');
+      })
+      .catch(() => {
+        setAudioGuideEnabledState(true);
+      });
+  }, []);
+
+  // Clean up sound on unmount
   useEffect(() => {
     return () => {
       soundRef.current?.unloadAsync().catch(() => {});
@@ -98,6 +119,11 @@ export function AudioPlayerProvider({
       }
     } catch (_) {}
   }, [isPaused]);
+
+  const setAudioGuideEnabled = useCallback(async (enabled: boolean) => {
+    setAudioGuideEnabledState(enabled);
+    await AsyncStorage.setItem(GUIDE_ENABLED_KEY, enabled ? 'true' : 'false').catch(() => {});
+  }, []);
 
   const play = useCallback(
     async (key: AudioGuideKey) => {
@@ -158,7 +184,17 @@ export function AudioPlayerProvider({
 
   return (
     <AudioPlayerContext.Provider
-      value={{ play, stop, pause, resume, isPlaying, isPaused, activeKey }}
+      value={{
+        play,
+        stop,
+        pause,
+        resume,
+        isPlaying,
+        isPaused,
+        activeKey,
+        audioGuideEnabled,
+        setAudioGuideEnabled,
+      }}
     >
       {children}
     </AudioPlayerContext.Provider>
