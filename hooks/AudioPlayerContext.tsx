@@ -72,11 +72,11 @@ export function AudioPlayerProvider({
   useEffect(() => {
     AsyncStorage.getItem(GUIDE_ENABLED_KEY)
       .then((val) => {
-        // Default to true if not set
-        setAudioGuideEnabledState(val !== 'false');
+        // Default to false on first launch (when val is null)
+        setAudioGuideEnabledState(val === 'true');
       })
       .catch(() => {
-        setAudioGuideEnabledState(true);
+        setAudioGuideEnabledState(false);
       });
   }, []);
 
