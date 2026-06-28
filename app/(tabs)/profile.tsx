@@ -27,7 +27,7 @@ export default function ProfileScreen() {
   const activeColors = Colors[colorScheme];
   const router = useRouter();
   const { showAlert, AlertModal } = useCustomAlert();
-  const { play, stop, isPlaying, activeKey } = useScreenAudio('profile_setup');
+  const { play, stop, isPlaying, activeKey } = useScreenAudio('settings');
 
   useEffect(() => {
     return () => {

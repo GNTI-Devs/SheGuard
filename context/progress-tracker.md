@@ -85,6 +85,11 @@
 - Made the audio guide system fully context-aware: when the user confirms audio guidance from the onboarding drawer prompt, it immediately plays the narration for the *current* screen (no hardcoded welcome playback).
 - Replaced emoji elements in the onboarding modal with professional `Ionicons` components (volume-high, mic).
 - Fixed the Maternity Locator screen pills layout to prevent vertical stretching (constraining the ScrollView to `flexGrow: 0` and `maxHeight: 55` when loading or empty).
+- Refactored `hospitals.tsx` into modular React components: `components/HospitalMap.tsx` ( WebView integration and popups) and `components/HospitalCard.tsx` (card views, badges, and call/save controls).
+- Streamlined locator page flow by rendering search inputs, the map, and pills inside the FlatList header, using a stable `HospitalHeader` component definition outside the main screen body to fix focus loss and typing jitter in the inputs.
+- Remapped the profile screen's audio guide key to `'settings'` (loading settings.wav instead of onboarding profile_setup.wav).
+- Resolved Kotlin compilation Metaspace OutOfMemory crashes in CI/CD by expanding JVM memory options in `gradle.properties` (Gradle Metaspace to 1024m and Kotlin daemon to 1024m).
+- Automated build publishing to GitHub Releases: added a publish job to `build.yml` that pulls the Android APK and iOS zip files on every push to `main` and creates a unique release tag (v1.0.0-b[run_number]) to prevent overwriting.
 
 ## Next Up
 

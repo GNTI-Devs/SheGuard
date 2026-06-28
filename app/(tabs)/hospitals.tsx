@@ -421,7 +421,122 @@ export default function HospitalsScreen() {
     }
   };
 
-  const renderHeader = () => (
+  return (
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: activeColors.background }]}
+      edges={['top']}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Ionicons name="medical" size={24} color={activeColors.primary} />
+          <Text style={[styles.headerTitle, { color: activeColors.text }]}>
+            Maternity Locator
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={handleRefresh}
+          style={[styles.refreshBtn, { borderColor: activeColors.border }]}
+          disabled={loading}
+        >
+          <Ionicons
+            name="refresh"
+            size={18}
+            color={loading ? activeColors.textMuted : activeColors.primary}
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* Hospital Cards */}
+      <FlatList
+        data={displayedHospitals}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContainer}
+        ListHeaderComponent={
+          <HospitalHeader
+            locationQuery={locationQuery}
+            setLocationQuery={setLocationQuery}
+            onLocationSearch={handleLocationSearch}
+            isGeocoding={isGeocoding}
+            nameFilter={nameFilter}
+            setNameFilter={setNameFilter}
+            loading={loading}
+            hospitals={hospitals}
+            userCoords={userCoords}
+            selectedHospitalId={selectedHospitalId}
+            showSavedOnly={showSavedOnly}
+            setShowSavedOnly={setShowSavedOnly}
+            savedCount={savedIds.length}
+            activeColors={activeColors}
+          />
+        }
+        ListEmptyComponent={
+          !loading ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons
+                name="alert-circle-outline"
+                size={48}
+                color={activeColors.textMuted}
+              />
+              <Text
+                style={[styles.emptyText, { color: activeColors.textMuted }]}
+              >
+                No maternity clinics found nearby. Try refreshing.
+              </Text>
+            </View>
+          ) : null
+        }
+        renderItem={({ item }) => (
+          <HospitalCard
+            item={item}
+            isSelected={selectedHospitalId === item.id}
+            isSaved={savedIds.includes(item.id)}
+            searchedArea={searchedArea}
+            onSelect={handleSelectHospital}
+            onToggleSave={handleToggleSave}
+            onCall={handleCallHospital}
+            activeColors={activeColors}
+          />
+        )}
+      />
+    </SafeAreaView>
+  );
+}
+
+interface HospitalHeaderProps {
+  locationQuery: string;
+  setLocationQuery: (q: string) => void;
+  onLocationSearch: () => void;
+  isGeocoding: boolean;
+  nameFilter: string;
+  setNameFilter: (f: string) => void;
+  loading: boolean;
+  hospitals: Hospital[];
+  userCoords: { lat: number; lng: number } | null;
+  selectedHospitalId: string | null;
+  showSavedOnly: boolean;
+  setShowSavedOnly: (s: boolean) => void;
+  savedCount: number;
+  activeColors: any;
+}
+
+function HospitalHeader({
+  locationQuery,
+  setLocationQuery,
+  onLocationSearch,
+  isGeocoding,
+  nameFilter,
+  setNameFilter,
+  loading,
+  hospitals,
+  userCoords,
+  selectedHospitalId,
+  showSavedOnly,
+  setShowSavedOnly,
+  savedCount,
+  activeColors,
+}: HospitalHeaderProps) {
+  return (
     <View>
       {/* Location Search Bar — geocodes the typed place, fetches new hospitals */}
       <View
@@ -440,7 +555,7 @@ export default function HospitalsScreen() {
           placeholderTextColor={activeColors.textMuted}
           value={locationQuery}
           onChangeText={setLocationQuery}
-          onSubmitEditing={handleLocationSearch}
+          onSubmitEditing={onLocationSearch}
           returnKeyType="search"
           style={[styles.searchInput, { color: activeColors.text }]}
           autoCapitalize="words"
@@ -449,7 +564,7 @@ export default function HospitalsScreen() {
         {isGeocoding ? (
           <ActivityIndicator size="small" color={activeColors.primary} />
         ) : (
-          <TouchableOpacity onPress={handleLocationSearch} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity onPress={onLocationSearch} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="search" size={18} color={activeColors.primary} />
           </TouchableOpacity>
         )}
@@ -544,75 +659,11 @@ export default function HospitalsScreen() {
               { color: showSavedOnly ? '#fff' : activeColors.textMuted },
             ]}
           >
-            Saved ({savedIds.length})
+            Saved ({savedCount})
           </Text>
         </TouchableOpacity>
       </View>
     </View>
-  );
-
-  return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: activeColors.background }]}
-      edges={['top']}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Ionicons name="medical" size={24} color={activeColors.primary} />
-          <Text style={[styles.headerTitle, { color: activeColors.text }]}>
-            Maternity Locator
-          </Text>
-        </View>
-        <TouchableOpacity
-          onPress={handleRefresh}
-          style={[styles.refreshBtn, { borderColor: activeColors.border }]}
-          disabled={loading}
-        >
-          <Ionicons
-            name="refresh"
-            size={18}
-            color={loading ? activeColors.textMuted : activeColors.primary}
-          />
-        </TouchableOpacity>
-      </View>
-
-      {/* Hospital Cards */}
-      <FlatList
-        data={displayedHospitals}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={
-          !loading ? (
-            <View style={styles.emptyContainer}>
-              <Ionicons
-                name="alert-circle-outline"
-                size={48}
-                color={activeColors.textMuted}
-              />
-              <Text
-                style={[styles.emptyText, { color: activeColors.textMuted }]}
-              >
-                No maternity clinics found nearby. Try refreshing.
-              </Text>
-            </View>
-          ) : null
-        }
-        renderItem={({ item }) => (
-          <HospitalCard
-            item={item}
-            isSelected={selectedHospitalId === item.id}
-            isSaved={savedIds.includes(item.id)}
-            searchedArea={searchedArea}
-            onSelect={handleSelectHospital}
-            onToggleSave={handleToggleSave}
-            onCall={handleCallHospital}
-            activeColors={activeColors}
-          />
-        )}
-      />
-    </SafeAreaView>
   );
 }
 
