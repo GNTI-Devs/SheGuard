@@ -11,6 +11,8 @@ jobs:
   build-android:
     name: Build Android Release APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -50,9 +52,57 @@ jobs:
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
+      - name: Prepare Android Release Files
+        id: prep
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p release-files
+          VERSION=$(node -p "require('./package.json').version")
+          BUILD_TAG="v$VERSION-b${{ github.run_number }}"
+          echo "build_tag=$BUILD_TAG" >> $GITHUB_OUTPUT
+          
+          APK_FILE=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          if [ -n "$APK_FILE" ]; then
+            cp "$APK_FILE" "release-files/SheGuard-$BUILD_TAG.apk"
+            echo "Copied Android APK to release-files/SheGuard-$BUILD_TAG.apk"
+          else
+            echo "ERROR: No APK found!"
+            exit 1
+          fi
+
+      - name: Publish Android Release
+        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          tag_name: ${{ steps.prep.outputs.build_tag }}
+          name: "SheGuard AI — ${{ steps.prep.outputs.build_tag }}"
+          prerelease: false
+          make_latest: "true"
+          fail_on_unmatched_files: true
+          body: |
+            ## 📲 Download SheGuard AI (${{ steps.prep.outputs.build_tag }})
+            
+            This release was built automatically from commit:
+            > ${{ github.event.head_commit.message }}
+            
+            ### Android
+            Download the latest **SheGuard-${{ steps.prep.outputs.build_tag }}.apk** file below.
+            
+            ### iOS Simulator
+            iOS Simulator build is compiling in parallel. It will be uploaded automatically to this page once the Xcode build completes.
+            
+            ---
+            *Built automatically from run ${{ github.run_number }}*
+          files: |
+            release-files/SheGuard-${{ steps.prep.outputs.build_tag }}.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-ios:
     name: Build iOS Simulator App
     runs-on: macos-14
+    permissions:
+      contents: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -116,67 +166,32 @@ jobs:
           path: ios/SheGuard-iOS-Simulator.zip
           if-no-files-found: error
 
-  publish:
-    name: Publish Versioned Release
-    needs: [build-android, build-ios]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Download Android Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: sheguard-android-release
-          path: ./dist-android
-
-      - name: Download iOS Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: sheguard-ios-release
-          path: ./dist-ios
-
-      - name: Prepare Release Files
+      - name: Prepare iOS Release Files
         id: prep
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           mkdir -p release-files
-          
-          # Read version from package.json
           VERSION=$(node -p "require('./package.json').version")
           BUILD_TAG="v$VERSION-b${{ github.run_number }}"
           echo "build_tag=$BUILD_TAG" >> $GITHUB_OUTPUT
           
-          # Find and copy APK
-          APK_FILE=$(find ./dist-android -name "*.apk" | head -n 1)
-          if [ -n "$APK_FILE" ]; then
-            cp "$APK_FILE" "release-files/SheGuard-$BUILD_TAG.apk"
-            echo "Copied Android APK: $APK_FILE to release-files/SheGuard-$BUILD_TAG.apk"
+          if [ -f ios/SheGuard-iOS-Simulator.zip ]; then
+            cp ios/SheGuard-iOS-Simulator.zip "release-files/SheGuard-iOS-Simulator-$BUILD_TAG.zip"
+            echo "Copied iOS Simulator to release-files/SheGuard-iOS-Simulator-$BUILD_TAG.zip"
           else
-            echo "WARNING: No Android APK found in dist-android!"
-            ls -la ./dist-android || true
-          fi
-          
-          # Find and copy iOS Zip
-          IOS_FILE=$(find ./dist-ios -name "*.zip" | head -n 1)
-          if [ -n "$IOS_FILE" ]; then
-            cp "$IOS_FILE" "release-files/SheGuard-iOS-Simulator-$BUILD_TAG.zip"
-            echo "Copied iOS Simulator Zip: $IOS_FILE to release-files/SheGuard-iOS-Simulator-$BUILD_TAG.zip"
-          else
-            echo "WARNING: No iOS Simulator Zip found in dist-ios!"
-            ls -la ./dist-ios || true
+            echo "ERROR: No Simulator Zip found!"
+            exit 1
           fi
 
-      - name: Create GitHub Release
+      - name: Publish iOS Release
         uses: softprops/action-gh-release@v2
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           tag_name: ${{ steps.prep.outputs.build_tag }}
           name: "SheGuard AI — ${{ steps.prep.outputs.build_tag }}"
           prerelease: false
           make_latest: "true"
-          fail_on_unmatched_files: false
+          fail_on_unmatched_files: true
           body: |
             ## 📲 Download SheGuard AI (${{ steps.prep.outputs.build_tag }})
             
@@ -192,7 +207,6 @@ jobs:
             ---
             *Built automatically from run ${{ github.run_number }}*
           files: |
-            release-files/SheGuard-${{ steps.prep.outputs.build_tag }}.apk
             release-files/SheGuard-iOS-Simulator-${{ steps.prep.outputs.build_tag }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
