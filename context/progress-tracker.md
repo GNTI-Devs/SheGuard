@@ -84,6 +84,7 @@
 - Integrated automatic agent dispatch inside the serverless Appwrite function (`scratch/appwrite-function/src/main.js`) using `AgentDispatchClient` to spin up `sheguard-ai` on token request.
 - Made the audio guide system fully context-aware: when the user confirms audio guidance from the onboarding drawer prompt, it immediately plays the narration for the *current* screen (no hardcoded welcome playback).
 - Replaced emoji elements in the onboarding modal with professional `Ionicons` components (volume-high, mic).
+- Fixed the Maternity Locator screen pills layout to prevent vertical stretching (constraining the ScrollView to `flexGrow: 0` and `maxHeight: 55` when loading or empty).
 
 ## Next Up
 

@@ -115,32 +115,7 @@ function buildFeatures(tags: Record<string, string>): string[] {
   return features.slice(0, 3); // max 3 badges
 }
 
-/** Extract closest unique area names from fetched results for the pills */
-function extractNearbyAreas(
-  hospitals: Hospital[],
-  userLat: number,
-  userLng: number
-): string[] {
-  const areaCounts: Record<string, number> = {};
 
-  hospitals.forEach((h) => {
-    const area =
-      h.tags['addr:suburb'] ||
-      h.tags['addr:neighbourhood'] ||
-      h.tags['addr:quarter'] ||
-      h.tags['addr:city'] ||
-      null;
-    if (area && area.length > 2) {
-      areaCounts[area] = (areaCounts[area] || 0) + 1;
-    }
-  });
-
-  // Sort by count descending → pick top 3
-  return Object.entries(areaCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([area]) => area);
-}
 
 const CACHE_KEY_HOSPITALS = 'cached_hospitals_v2';
 const CACHE_KEY_COORDS = 'cached_user_coords';
@@ -163,8 +138,6 @@ export default function HospitalsScreen() {
     lat: number;
     lng: number;
   } | null>(null);
-  const [nearbyAreas, setNearbyAreas] = useState<string[]>([]);
-  const [activeArea, setActiveArea] = useState<string | null>(null);
   // Name filter: instantly filters the currently-loaded list
   const [nameFilter, setNameFilter] = useState('');
   // Location search: geocodes the query and fetches new hospitals
@@ -238,11 +211,7 @@ export default function HospitalsScreen() {
         // Sort by closest first
         .sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
 
-      const areas = extractNearbyAreas(list, lat, lng);
-
       setHospitals(list);
-      setNearbyAreas(areas);
-      setActiveArea(null);
       if (list.length > 0) setSelectedHospitalId(list[0].id);
       setLoading(false);
       renderMarkersOnMap(list, { lat, lng });
@@ -287,8 +256,6 @@ export default function HospitalsScreen() {
                       (a.distanceKm ?? 999) - (b.distanceKm ?? 999)
                   );
                 setHospitals(resorted);
-                setNearbyAreas(extractNearbyAreas(resorted, lat, lng));
-                setActiveArea(null);
                 if (resorted.length > 0) setSelectedHospitalId(resorted[0].id);
                 setLoading(false);
                 renderMarkersOnMap(resorted, { lat, lng });
@@ -435,9 +402,6 @@ export default function HospitalsScreen() {
     );
   };
 
-  const handleAreaPill = (area: string) => {
-    setActiveArea(area === activeArea ? null : area);
-  };
 
   const handleRefresh = () => {
     if (userCoords) fetchHospitals(userCoords.lat, userCoords.lng, true);
@@ -516,22 +480,12 @@ export default function HospitalsScreen() {
     } catch (_) {}
   };
 
-  // Filter displayed list by active area pill, name filter, and saved filter
+  // Filter displayed list by name filter and saved filter
   const displayedHospitals = hospitals.filter((h) => {
     // 1. Saved-only filter
     if (showSavedOnly && !savedIds.includes(h.id)) return false;
 
-    // 2. Area pill filter
-    if (activeArea) {
-      const matchArea =
-        h.tags['addr:suburb'] === activeArea ||
-        h.tags['addr:neighbourhood'] === activeArea ||
-        h.tags['addr:quarter'] === activeArea ||
-        h.tags['addr:city'] === activeArea;
-      if (!matchArea) return false;
-    }
-
-    // 3. Name/address text filter (instant, client-side)
+    // 2. Name/address text filter (instant, client-side)
     if (nameFilter.trim()) {
       const q = nameFilter.toLowerCase().trim();
       const matchName = h.name?.toLowerCase().includes(q);
@@ -772,23 +726,15 @@ export default function HospitalsScreen() {
         )}
       </View>
 
-      {/* Filter Pills — area pills + Saved pill */}
-      <ScrollView
-        horizontal
-        style={styles.pillsScroll}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.pillsRow}
-      >
+      {/* Filter Pills — All Nearby + Saved only */}
+      <View style={styles.pillsContainer}>
         {/* "All" pill */}
         <TouchableOpacity
-          onPress={() => { setActiveArea(null); setShowSavedOnly(false); }}
+          onPress={() => setShowSavedOnly(false)}
           style={[
             styles.pill,
             {
-              backgroundColor:
-                activeArea === null && !showSavedOnly
-                  ? activeColors.primary
-                  : activeColors.surface,
+              backgroundColor: !showSavedOnly ? activeColors.primary : activeColors.surface,
               borderColor: activeColors.border,
             },
           ]}
@@ -796,13 +742,13 @@ export default function HospitalsScreen() {
           <Ionicons
             name="locate"
             size={14}
-            color={activeArea === null && !showSavedOnly ? '#fff' : activeColors.primary}
+            color={!showSavedOnly ? '#fff' : activeColors.primary}
             style={{ marginRight: 4 }}
           />
           <Text
             style={[
               styles.pillText,
-              { color: activeArea === null && !showSavedOnly ? '#fff' : activeColors.textMuted },
+              { color: !showSavedOnly ? '#fff' : activeColors.textMuted },
             ]}
           >
             All nearby
@@ -811,7 +757,7 @@ export default function HospitalsScreen() {
 
         {/* Saved pill */}
         <TouchableOpacity
-          onPress={() => { setShowSavedOnly(!showSavedOnly); setActiveArea(null); }}
+          onPress={() => setShowSavedOnly(true)}
           style={[
             styles.pill,
             {
@@ -835,33 +781,7 @@ export default function HospitalsScreen() {
             Saved ({savedIds.length})
           </Text>
         </TouchableOpacity>
-
-        {nearbyAreas.map((area) => (
-          <TouchableOpacity
-            key={area}
-            onPress={() => { handleAreaPill(area); setShowSavedOnly(false); }}
-            style={[
-              styles.pill,
-              {
-                backgroundColor:
-                  activeArea === area
-                    ? activeColors.primary
-                    : activeColors.surface,
-                borderColor: activeColors.border,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.pillText,
-                { color: activeArea === area ? '#fff' : activeColors.textMuted },
-              ]}
-            >
-              {area}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      </View>
 
       {/* Hospital Cards */}
       <FlatList
@@ -1093,14 +1013,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  pillsScroll: {
-    flexGrow: 0,
-    maxHeight: 55,
-  },
-  pillsRow: {
+  pillsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    gap: 8,
+    gap: 12,
+    flexShrink: 0,
+    height: 52,
   },
   pill: {
     flexDirection: 'row',
