@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,30 +8,20 @@ import {
   Linking,
   Alert,
   ActivityIndicator,
-  ScrollView,
   TextInput,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
+import { HospitalMap, Hospital } from '@/components/HospitalMap';
+import { HospitalCard } from '@/components/HospitalCard';
 
-interface Hospital {
-  id: string;
-  name: string;
-  address: string;
-  phone: string;
-  website?: string;
-  openingHours?: string;
-  operatorType?: string; // 'hospital' | 'clinic'
-  lat: number;
-  lng: number;
-  distanceKm?: number;
-  tags: Record<string, string>;
-}
+const CACHE_KEY_HOSPITALS = 'cached_hospitals_v2';
+const CACHE_KEY_COORDS = 'cached_user_coords';
+const CACHE_DISTANCE_THRESHOLD_KM = 3; // If user is within 3km of last fetch, use cache
 
 /** Haversine formula: returns distance in km between two lat/lng points */
 function haversineKm(
@@ -55,18 +45,41 @@ function haversineKm(
 function buildAddress(tags: Record<string, string>): string {
   const parts: string[] = [];
 
-  if (tags['addr:housenumber'] && tags['addr:street']) {
-    parts.push(`${tags['addr:housenumber']} ${tags['addr:street']}`);
-  } else if (tags['addr:street']) {
-    parts.push(tags['addr:street']);
+  const houseNumber = tags['addr:housenumber'] || tags['housenumber'];
+  const street = tags['addr:street'] || tags['street'];
+
+  if (houseNumber && street) {
+    parts.push(`${houseNumber} ${street}`);
+  } else if (street) {
+    parts.push(street);
   }
 
-  if (tags['addr:suburb']) parts.push(tags['addr:suburb']);
-  else if (tags['addr:neighbourhood']) parts.push(tags['addr:neighbourhood']);
-  else if (tags['addr:quarter']) parts.push(tags['addr:quarter']);
+  const place = tags['addr:place'] || tags['place'];
+  if (place && !street) {
+    parts.push(place);
+  }
 
-  if (tags['addr:city']) parts.push(tags['addr:city']);
-  else if (tags['addr:state']) parts.push(tags['addr:state']);
+  const suburb =
+    tags['addr:suburb'] ||
+    tags['suburb'] ||
+    tags['addr:neighbourhood'] ||
+    tags['neighbourhood'] ||
+    tags['addr:quarter'] ||
+    tags['quarter'];
+  if (suburb) {
+    parts.push(suburb);
+  }
+
+  const city =
+    tags['addr:city'] ||
+    tags['city'] ||
+    tags['addr:province'] ||
+    tags['province'] ||
+    tags['addr:state'] ||
+    tags['state'];
+  if (city) {
+    parts.push(city);
+  }
 
   if (parts.length > 0) return parts.join(', ');
 
@@ -74,60 +87,12 @@ function buildAddress(tags: Record<string, string>): string {
   if (tags['description']) return tags['description'];
   if (tags['note']) return tags['note'];
 
-  return 'Location details available on arrival';
+  return '';
 }
-
-/** Extract rich features from OSM tags */
-function buildFeatures(tags: Record<string, string>): string[] {
-  const features: string[] = [];
-
-  if (tags.amenity === 'hospital') features.push('Hospital');
-  else features.push('Clinic');
-
-  if (
-    tags['healthcare:speciality']?.toLowerCase().includes('obstetrics') ||
-    tags['healthcare:speciality']?.toLowerCase().includes('gynaecology') ||
-    tags['healthcare:speciality']?.toLowerCase().includes('maternity')
-  ) {
-    features.push('Maternity Unit');
-  }
-  if (
-    tags['healthcare:speciality']?.toLowerCase().includes('paediatric') ||
-    tags['healthcare:speciality']?.toLowerCase().includes('pediatric')
-  ) {
-    features.push('Paediatrics');
-  }
-  if (tags['emergency'] === 'yes') features.push('Emergency');
-  if (tags['beds']) features.push(`${tags['beds']} beds`);
-  if (tags['operator:type'] === 'public') features.push('Government');
-  else if (tags['operator:type'] === 'private') features.push('Private');
-  if (tags['wheelchair'] === 'yes') features.push('Wheelchair Access');
-
-  // Default if nothing specific found
-  if (features.length === 1) {
-    if (tags.amenity === 'hospital') {
-      features.push('Maternity Ward', 'General Care');
-    } else {
-      features.push('Prenatal Care', 'Outpatient');
-    }
-  }
-
-  return features.slice(0, 3); // max 3 badges
-}
-
-
-
-const CACHE_KEY_HOSPITALS = 'cached_hospitals_v2';
-const CACHE_KEY_COORDS = 'cached_user_coords';
-const CACHE_DISTANCE_THRESHOLD_KM = 3; // If user is within 3km of last fetch, use cache
 
 export default function HospitalsScreen() {
   const colorScheme = useColorScheme();
   const activeColors = Colors[colorScheme ?? 'light'];
-  const webViewRef = useRef<WebView>(null);
-  const mapReadyRef = useRef(false);
-  const pendingMarkersRef = useRef<Hospital[] | null>(null);
-  const pendingCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(
@@ -146,6 +111,7 @@ export default function HospitalsScreen() {
   // Saved hospitals
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [showSavedOnly, setShowSavedOnly] = useState(false);
+  const [searchedArea, setSearchedArea] = useState('your location');
 
   const SAVED_KEY = 'saved_hospital_ids';
 
@@ -158,28 +124,28 @@ export default function HospitalsScreen() {
       .catch(() => {});
   }, []);
 
-  const postToWebView = (payload: object) => {
-    if (webViewRef.current) {
-      webViewRef.current.postMessage(JSON.stringify(payload));
-    }
-  };
+  // Filter displayed list by name filter and saved filter
+  const displayedHospitals = hospitals.filter((h) => {
+    // 1. Saved-only filter
+    if (showSavedOnly && !savedIds.includes(h.id)) return false;
 
-  const renderMarkersOnMap = useCallback(
-    (list: Hospital[], coords: { lat: number; lng: number }) => {
-      if (!mapReadyRef.current) {
-        pendingMarkersRef.current = list;
-        pendingCoordsRef.current = coords;
-        return;
-      }
-      postToWebView({ type: 'render_markers', list, userCoords: coords });
-    },
-    []
-  );
+    // 2. Name/address text filter (instant, client-side)
+    if (nameFilter.trim()) {
+      const q = nameFilter.toLowerCase().trim();
+      const matchName = h.name?.toLowerCase().includes(q);
+      const matchAddr = h.address?.toLowerCase().includes(q);
+      const matchCity = h.tags['addr:city']?.toLowerCase().includes(q);
+      const matchSuburb = h.tags['addr:suburb']?.toLowerCase().includes(q);
+      return matchName || matchAddr || matchCity || matchSuburb;
+    }
+
+    return true;
+  });
 
   const processAndSetHospitals = useCallback(
     (elements: any[], lat: number, lng: number) => {
       const list: Hospital[] = elements
-        .filter((el) => el.tags && el.lat && el.lon)
+        .filter((el) => el.tags && (el.lat || el.center?.lat) && (el.lon || el.center?.lon))
         .map((el) => {
           const tags: Record<string, string> = el.tags || {};
           const name =
@@ -192,7 +158,9 @@ export default function HospitalsScreen() {
             tags.phone || tags['contact:phone'] || tags['telephone'] || '';
           const website = tags.website || tags['contact:website'] || '';
           const openingHours = tags['opening_hours'] || '';
-          const distanceKm = haversineKm(lat, lng, el.lat, el.lon);
+          const elLat = el.lat || el.center.lat;
+          const elLon = el.lon || el.center.lon;
+          const distanceKm = haversineKm(lat, lng, elLat, elLon);
 
           return {
             id: el.id.toString(),
@@ -202,8 +170,8 @@ export default function HospitalsScreen() {
             website,
             openingHours,
             operatorType: tags.amenity,
-            lat: el.lat,
-            lng: el.lon,
+            lat: elLat,
+            lng: elLon,
             distanceKm: Math.round(distanceKm * 10) / 10,
             tags,
           };
@@ -214,9 +182,8 @@ export default function HospitalsScreen() {
       setHospitals(list);
       if (list.length > 0) setSelectedHospitalId(list[0].id);
       setLoading(false);
-      renderMarkersOnMap(list, { lat, lng });
     },
-    [renderMarkersOnMap]
+    []
   );
 
   const fetchHospitals = useCallback(
@@ -258,7 +225,6 @@ export default function HospitalsScreen() {
                 setHospitals(resorted);
                 if (resorted.length > 0) setSelectedHospitalId(resorted[0].id);
                 setLoading(false);
-                renderMarkersOnMap(resorted, { lat, lng });
                 return;
               }
             }
@@ -273,7 +239,8 @@ export default function HospitalsScreen() {
             4
           )}...`
         );
-        const query = `[out:json][timeout:25];(node["amenity"="hospital"](around:15000,${lat},${lng});node["amenity"="clinic"](around:15000,${lat},${lng});node["healthcare"="hospital"](around:15000,${lat},${lng}););out body;`;
+        // Query nodes, ways, and relations matching hospital or clinic to get complete building outline details
+        const query = `[out:json][timeout:25];(node["amenity"~"hospital|clinic"](around:15000,${lat},${lng});way["amenity"~"hospital|clinic"](around:15000,${lat},${lng});relation["amenity"~"hospital|clinic"](around:15000,${lat},${lng});node["healthcare"~"hospital|clinic"](around:15000,${lat},${lng});way["healthcare"~"hospital|clinic"](around:15000,${lat},${lng});relation["healthcare"~"hospital|clinic"](around:15000,${lat},${lng}););out center;`;
 
         const response = await fetch(
           'https://overpass-api.de/api/interpreter',
@@ -305,45 +272,52 @@ export default function HospitalsScreen() {
           CACHE_KEY_HOSPITALS,
           JSON.stringify(
             elements
-              .filter((el: any) => el.tags && el.lat && el.lon)
-              .map((el: any) => ({
-                id: el.id.toString(),
-                name: el.tags.name || el.tags['name:en'] || 'Medical Facility',
-                address: buildAddress(el.tags),
-                phone: el.tags.phone || el.tags['contact:phone'] || '',
-                website: el.tags.website || '',
-                openingHours: el.tags['opening_hours'] || '',
-                operatorType: el.tags.amenity,
-                lat: el.lat,
-                lng: el.lon,
-                distanceKm:
-                  Math.round(haversineKm(lat, lng, el.lat, el.lon) * 10) / 10,
-                tags: el.tags,
-              }))
+              .filter((el: any) => el.tags && (el.lat || el.center?.lat) && (el.lon || el.center?.lon))
+              .map((el: any) => {
+                const elLat = el.lat || el.center.lat;
+                const elLon = el.lon || el.center.lon;
+                return {
+                  id: el.id.toString(),
+                  name: el.tags.name || el.tags['name:en'] || 'Medical Facility',
+                  address: buildAddress(el.tags),
+                  phone: el.tags.phone || el.tags['contact:phone'] || '',
+                  website: el.tags.website || '',
+                  openingHours: el.tags['opening_hours'] || '',
+                  operatorType: el.tags.amenity,
+                  lat: elLat,
+                  lng: elLon,
+                  distanceKm:
+                    Math.round(haversineKm(lat, lng, elLat, elLon) * 10) / 10,
+                  tags: el.tags,
+                };
+              })
           )
         );
       } catch (err: any) {
         console.error('[Hospitals] Fetch failed:', err);
         setLoading(false);
         Alert.alert(
-          'Could not load clinics',
-          'Please check your internet connection and try again.'
+          'Network Error',
+          'Could not retrieve nearby maternal clinics. Please try again.'
         );
       }
     },
-    [processAndSetHospitals, renderMarkersOnMap]
+    [processAndSetHospitals]
   );
 
-  // On mount: get location then load
+  // Load user location on mount
   useEffect(() => {
     async function initLocation() {
       try {
-        const { status: existing } =
-          await Location.getForegroundPermissionsAsync();
-        let finalStatus = existing;
-        if (existing !== 'granted') {
-          const { status } = await Location.requestForegroundPermissionsAsync();
-          finalStatus = status;
+        const { status } = await Location.getLastKnownPositionAsync().then(
+          () => Location.getForegroundPermissionsAsync()
+        );
+
+        let finalStatus = status;
+        if (status !== 'granted') {
+          const { status: askStatus } =
+            await Location.requestForegroundPermissionsAsync();
+          finalStatus = askStatus;
         }
 
         if (finalStatus !== 'granted') {
@@ -352,6 +326,7 @@ export default function HospitalsScreen() {
           if (cachedCoordsRaw) {
             const c = JSON.parse(cachedCoordsRaw);
             setUserCoords(c);
+            setSearchedArea('your location');
             await fetchHospitals(c.lat, c.lng);
           } else {
             setLoading(false);
@@ -368,11 +343,7 @@ export default function HospitalsScreen() {
         });
         const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setUserCoords(coords);
-        postToWebView({
-          type: 'setUserLocation',
-          lat: coords.lat,
-          lng: coords.lng,
-        });
+        setSearchedArea('your location');
         await fetchHospitals(coords.lat, coords.lng);
       } catch (err) {
         console.warn('[Hospitals] Location init failed:', err);
@@ -384,7 +355,6 @@ export default function HospitalsScreen() {
 
   const handleSelectHospital = (h: Hospital) => {
     setSelectedHospitalId(h.id);
-    postToWebView({ type: 'centerMap', lat: h.lat, lng: h.lng });
   };
 
   const handleCallHospital = (phone: string) => {
@@ -402,6 +372,15 @@ export default function HospitalsScreen() {
     );
   };
 
+  const handleToggleSave = async (id: string) => {
+    try {
+      const updated = savedIds.includes(id)
+        ? savedIds.filter((x) => x !== id)
+        : [...savedIds, id];
+      setSavedIds(updated);
+      await AsyncStorage.setItem(SAVED_KEY, JSON.stringify(updated));
+    } catch (_) {}
+  };
 
   const handleRefresh = () => {
     if (userCoords) fetchHospitals(userCoords.lat, userCoords.lng, true);
@@ -433,7 +412,7 @@ export default function HospitalsScreen() {
       const lat = parseFloat(data[0].lat);
       const lng = parseFloat(data[0].lon);
       setUserCoords({ lat, lng });
-      postToWebView({ type: 'setUserLocation', lat, lng });
+      setSearchedArea(query);
       await fetchHospitals(lat, lng, true);
     } catch (err) {
       Alert.alert('Search Error', 'Could not search that location. Check your connection.');
@@ -442,203 +421,8 @@ export default function HospitalsScreen() {
     }
   };
 
-  /** Toggle save/bookmark for a hospital */
-  const handleToggleSave = async (id: string) => {
-    const next = savedIds.includes(id)
-      ? savedIds.filter((s) => s !== id)
-      : [...savedIds, id];
-    setSavedIds(next);
-    await AsyncStorage.setItem(SAVED_KEY, JSON.stringify(next)).catch(() => {});
-  };
-
-  const handleMessage = (event: any) => {
-    try {
-      const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === 'map_ready') {
-        mapReadyRef.current = true;
-        if (pendingMarkersRef.current && pendingCoordsRef.current) {
-          postToWebView({
-            type: 'render_markers',
-            list: pendingMarkersRef.current,
-            userCoords: pendingCoordsRef.current,
-          });
-          pendingMarkersRef.current = null;
-          pendingCoordsRef.current = null;
-        }
-        if (userCoords) {
-          postToWebView({
-            type: 'setUserLocation',
-            lat: userCoords.lat,
-            lng: userCoords.lng,
-          });
-        }
-      } else if (data.type === 'log') {
-        console.log('[Map]', data.message);
-      } else if (data.type === 'error') {
-        console.error('[Map Error]', data.message);
-      }
-    } catch (_) {}
-  };
-
-  // Filter displayed list by name filter and saved filter
-  const displayedHospitals = hospitals.filter((h) => {
-    // 1. Saved-only filter
-    if (showSavedOnly && !savedIds.includes(h.id)) return false;
-
-    // 2. Name/address text filter (instant, client-side)
-    if (nameFilter.trim()) {
-      const q = nameFilter.toLowerCase().trim();
-      const matchName = h.name?.toLowerCase().includes(q);
-      const matchAddr = h.address?.toLowerCase().includes(q);
-      const matchCity = h.tags['addr:city']?.toLowerCase().includes(q);
-      const matchSuburb = h.tags['addr:suburb']?.toLowerCase().includes(q);
-      return matchName || matchAddr || matchCity || matchSuburb;
-    }
-
-    return true;
-  });
-
-  const mapHtml = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8" />
-      <title>Maternity Map</title>
-      <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-      <link href="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css" rel="stylesheet" />
-      <script src="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js"></script>
-      <style>
-        body { margin: 0; padding: 0; background: #1E1412; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; }
-        .mapboxgl-popup-content {
-          background: #2E1E1B !important;
-          color: #F4EFEB !important;
-          font-family: system-ui, sans-serif;
-          border-radius: 12px;
-          border: 1px solid #4A2E2A;
-          padding: 10px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-          max-width: 180px;
-        }
-        .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip { border-top-color: #2E1E1B !important; }
-        .mapboxgl-popup-anchor-top .mapboxgl-popup-tip { border-bottom-color: #2E1E1B !important; }
-        .custom-marker {
-          width: 28px; height: 28px;
-          background: #C85A46;
-          border: 3px solid #F4EFEB;
-          border-radius: 50%;
-          cursor: pointer;
-          box-shadow: 0 0 10px rgba(200,90,70,0.6);
-          display: flex; align-items: center; justify-content: center;
-          font-size: 13px;
-          transition: transform 0.2s;
-        }
-        .custom-marker:hover { transform: scale(1.2); }
-        .user-marker {
-          width: 16px; height: 16px;
-          background: #3b82f6;
-          border: 3px solid #fff;
-          border-radius: 50%;
-          box-shadow: 0 0 12px rgba(59,130,246,0.8);
-        }
-      </style>
-    </head>
-    <body>
-      <div id="map"></div>
-      <script>
-        var map = new maplibregl.Map({
-          container: 'map',
-          style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-          center: [3.4008, 6.4528],
-          zoom: 11,
-          attributionControl: false
-        });
-
-        var activeMarkers = [];
-        var userMarker = null;
-
-        function log(msg) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'log', message: msg }));
-        }
-
-        map.on('load', function() {
-          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'map_ready' }));
-        });
-
-        document.addEventListener('message', handleMsg);
-        window.addEventListener('message', handleMsg);
-
-        function handleMsg(event) {
-          try {
-            var data = JSON.parse(event.data);
-            if (data.type === 'setUserLocation') {
-              map.setCenter([data.lng, data.lat]);
-              if (userMarker) userMarker.remove();
-              var el = document.createElement('div');
-              el.className = 'user-marker';
-              userMarker = new maplibregl.Marker(el).setLngLat([data.lng, data.lat]).addTo(map);
-            } else if (data.type === 'centerMap') {
-              map.flyTo({ center: [data.lng, data.lat], zoom: 15, essential: true });
-            } else if (data.type === 'render_markers') {
-              activeMarkers.forEach(function(m) { m.remove(); });
-              activeMarkers = [];
-              data.list.forEach(function(el) {
-                var markerEl = document.createElement('div');
-                markerEl.className = 'custom-marker';
-                markerEl.innerHTML = '🏥';
-                var distTxt = el.distanceKm != null ? el.distanceKm + 'km away' : '';
-                var popup = new maplibregl.Popup({ offset: 25 })
-                  .setHTML(
-                    '<strong style="font-size:13px;color:#C85A46;">' + el.name + '</strong>' +
-                    (distTxt ? '<p style="margin:3px 0 0;font-size:11px;color:#AAA;">' + distTxt + '</p>' : '') +
-                    (el.address && el.address !== 'Location details available on arrival'
-                      ? '<p style="margin:3px 0 0;font-size:11px;color:#BCAEAA;">' + el.address + '</p>'
-                      : '')
-                  );
-                var marker = new maplibregl.Marker(markerEl).setLngLat([el.lng, el.lat]).setPopup(popup).addTo(map);
-                activeMarkers.push(marker);
-              });
-              if (data.userCoords) {
-                if (userMarker) userMarker.remove();
-                var uEl = document.createElement('div');
-                uEl.className = 'user-marker';
-                userMarker = new maplibregl.Marker(uEl).setLngLat([data.userCoords.lng, data.userCoords.lat]).addTo(map);
-                map.flyTo({ center: [data.userCoords.lng, data.userCoords.lat], zoom: 12 });
-              }
-            }
-          } catch(e) { log('Parse error: ' + e.message); }
-        }
-      </script>
-    </body>
-    </html>
-  `;
-
-  return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: activeColors.background }]}
-      edges={['top']}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Ionicons name="medical" size={24} color={activeColors.primary} />
-          <Text style={[styles.headerTitle, { color: activeColors.text }]}>
-            Maternity Locator
-          </Text>
-        </View>
-        <TouchableOpacity
-          onPress={handleRefresh}
-          style={[styles.refreshBtn, { borderColor: activeColors.border }]}
-          disabled={loading}
-        >
-          <Ionicons
-            name="refresh"
-            size={18}
-            color={loading ? activeColors.textMuted : activeColors.primary}
-          />
-        </TouchableOpacity>
-      </View>
-
+  const renderHeader = () => (
+    <View>
       {/* Location Search Bar — geocodes the typed place, fetches new hospitals */}
       <View
         style={[
@@ -646,6 +430,7 @@ export default function HospitalsScreen() {
           {
             backgroundColor: activeColors.surface,
             borderColor: activeColors.border,
+            marginTop: 10,
           },
         ]}
       >
@@ -698,33 +483,14 @@ export default function HospitalsScreen() {
         )}
       </View>
 
-      {/* Map */}
-      <View style={[styles.mapContainer, { borderColor: activeColors.border }]}>
-        <WebView
-          ref={webViewRef}
-          originWhitelist={['*']}
-          source={{ html: mapHtml }}
-          style={styles.mapWebView}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          scalesPageToFit={false}
-          scrollEnabled={false}
-          onMessage={handleMessage}
-        />
-        {loading && (
-          <View
-            style={[
-              styles.loadingOverlay,
-              { backgroundColor: activeColors.background + 'CC' },
-            ]}
-          >
-            <ActivityIndicator size="large" color={activeColors.primary} />
-            <Text style={[styles.loadingText, { color: activeColors.text }]}>
-              Finding nearest clinics...
-            </Text>
-          </View>
-        )}
-      </View>
+      {/* Map Component */}
+      <HospitalMap
+        loading={loading}
+        hospitals={hospitals}
+        userCoords={userCoords}
+        selectedHospitalId={selectedHospitalId}
+        activeColors={activeColors}
+      />
 
       {/* Filter Pills — All Nearby + Saved only */}
       <View style={styles.pillsContainer}>
@@ -782,12 +548,41 @@ export default function HospitalsScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+    </View>
+  );
+
+  return (
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: activeColors.background }]}
+      edges={['top']}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Ionicons name="medical" size={24} color={activeColors.primary} />
+          <Text style={[styles.headerTitle, { color: activeColors.text }]}>
+            Maternity Locator
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={handleRefresh}
+          style={[styles.refreshBtn, { borderColor: activeColors.border }]}
+          disabled={loading}
+        >
+          <Ionicons
+            name="refresh"
+            size={18}
+            color={loading ? activeColors.textMuted : activeColors.primary}
+          />
+        </TouchableOpacity>
+      </View>
 
       {/* Hospital Cards */}
       <FlatList
         data={displayedHospitals}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
+        ListHeaderComponent={renderHeader}
         ListEmptyComponent={
           !loading ? (
             <View style={styles.emptyContainer}>
@@ -804,145 +599,18 @@ export default function HospitalsScreen() {
             </View>
           ) : null
         }
-        renderItem={({ item }) => {
-          const isSelected = selectedHospitalId === item.id;
-          const features = buildFeatures(item.tags);
-          return (
-            <TouchableOpacity
-              onPress={() => handleSelectHospital(item)}
-              style={[
-                styles.hospitalCard,
-                {
-                  backgroundColor: activeColors.surface,
-                  borderColor: isSelected
-                    ? activeColors.primary
-                    : activeColors.border,
-                  borderWidth: isSelected ? 2 : 1,
-                },
-              ]}
-              activeOpacity={0.8}
-            >
-              <View style={styles.cardHeader}>
-                <View style={styles.cardTitleRow}>
-                  <Text
-                    style={[styles.hospitalName, { color: activeColors.text }]}
-                    numberOfLines={2}
-                  >
-                    {item.name}
-                  </Text>
-                  {item.distanceKm != null && (
-                    <View
-                      style={[
-                        styles.distanceBadge,
-                        { backgroundColor: activeColors.primaryMuted },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.distanceText,
-                          { color: activeColors.primary },
-                        ]}
-                      >
-                        {item.distanceKm} km
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                  {/* Bookmark/Save button */}
-                  <TouchableOpacity
-                    onPress={() => handleToggleSave(item.id)}
-                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                    style={styles.bookmarkBtn}
-                  >
-                    <Ionicons
-                      name={savedIds.includes(item.id) ? 'bookmark' : 'bookmark-outline'}
-                      size={18}
-                      color={savedIds.includes(item.id) ? '#C85A46' : activeColors.textMuted}
-                    />
-                  </TouchableOpacity>
-                  {/* Call button */}
-                  <TouchableOpacity
-                    onPress={() => handleCallHospital(item.phone)}
-                    style={[
-                      styles.callButton,
-                      { backgroundColor: activeColors.primary },
-                    ]}
-                  >
-                    <Ionicons name="call" size={16} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={styles.addressRow}>
-                <Ionicons
-                  name="location-outline"
-                  size={13}
-                  color={activeColors.textMuted}
-                />
-                <Text
-                  style={[
-                    styles.hospitalAddress,
-                    { color: activeColors.textMuted },
-                  ]}
-                  numberOfLines={2}
-                >
-                  {item.address}
-                </Text>
-              </View>
-
-              {item.openingHours ? (
-                <View style={styles.hoursRow}>
-                  <Ionicons
-                    name="time-outline"
-                    size={13}
-                    color={activeColors.textMuted}
-                  />
-                  <Text
-                    style={[
-                      styles.hoursText,
-                      { color: activeColors.textMuted },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {item.openingHours}
-                  </Text>
-                </View>
-              ) : null}
-
-              <View style={styles.badgeContainer}>
-                {features.map((feat, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.badge,
-                      {
-                        backgroundColor:
-                          i === 0
-                            ? activeColors.primaryMuted
-                            : activeColors.surface2,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.badgeText,
-                        {
-                          color:
-                            i === 0
-                              ? activeColors.primary
-                              : activeColors.textMuted,
-                        },
-                      ]}
-                    >
-                      {feat}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </TouchableOpacity>
-          );
-        }}
+        renderItem={({ item }) => (
+          <HospitalCard
+            item={item}
+            isSelected={selectedHospitalId === item.id}
+            isSaved={savedIds.includes(item.id)}
+            searchedArea={searchedArea}
+            onSelect={handleSelectHospital}
+            onToggleSave={handleToggleSave}
+            onCall={handleCallHospital}
+            activeColors={activeColors}
+          />
+        )}
       />
     </SafeAreaView>
   );
@@ -991,28 +659,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  mapContainer: {
-    height: 220,
-    marginHorizontal: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    position: 'relative',
-  },
-  mapWebView: {
-    flex: 1,
-    backgroundColor: '#1E1412',
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
   pillsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1050,84 +696,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     paddingHorizontal: 24,
-  },
-  hospitalCard: {
-    borderRadius: 16,
-    padding: 16,
-    gap: 8,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  cardTitleRow: {
-    flex: 1,
-    gap: 4,
-  },
-  hospitalName: {
-    fontSize: 16,
-    fontWeight: '700',
-    lineHeight: 22,
-  },
-  distanceBadge: {
-    alignSelf: 'flex-start',
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 10,
-  },
-  distanceText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  callButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  bookmarkBtn: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  addressRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 5,
-  },
-  hospitalAddress: {
-    fontSize: 13,
-    lineHeight: 18,
-    flex: 1,
-  },
-  hoursRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  hoursText: {
-    fontSize: 12,
-    flex: 1,
-  },
-  badgeContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 4,
-  },
-  badge: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '600',
   },
 });
