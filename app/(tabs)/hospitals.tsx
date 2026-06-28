@@ -775,6 +775,7 @@ export default function HospitalsScreen() {
       {/* Filter Pills — area pills + Saved pill */}
       <ScrollView
         horizontal
+        style={styles.pillsScroll}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.pillsRow}
       >
@@ -1091,6 +1092,10 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  pillsScroll: {
+    flexGrow: 0,
+    maxHeight: 55,
   },
   pillsRow: {
     paddingHorizontal: 16,
