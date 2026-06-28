@@ -40,6 +40,7 @@ interface ConnectionContextType {
   connect: () => Promise<void>;
   disconnect: () => void;
   room: any;
+  isAgentSpeaking: boolean;
 }
 
 const ConnectionContext = createContext<ConnectionContextType>({
@@ -49,6 +50,7 @@ const ConnectionContext = createContext<ConnectionContextType>({
   connect: async () => {},
   disconnect: () => {},
   room: null,
+  isAgentSpeaking: false,
 });
 
 export function useConnection() {
@@ -69,6 +71,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
   const [activeToken, setActiveToken] = useState(hardcodedToken);
   const [isLoadingToken, setIsLoadingToken] = useState(false);
   const [emergencyMode, setEmergencyMode] = useState(false);
+  const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
 
   // Guards to prevent double-starts and unintended restarts
   const hasStartedRef = useRef(false);
@@ -165,6 +168,15 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       }
     };
 
+    // Track when the remote agent participant is speaking
+    const onActiveSpeakersChanged = (speakers: any[]) => {
+      const localId = room.localParticipant?.identity;
+      const agentSpeaking = speakers.some(
+        (p: any) => p.identity !== localId && p.isSpeaking
+      );
+      setIsAgentSpeaking(agentSpeaking);
+    };
+
     const onConnected = () => {
       (async () => {
         try {
@@ -185,16 +197,18 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
     };
 
     room.on(RoomEvent.ParticipantAttributesChanged, onAttributesChanged);
+    room.on(RoomEvent.ActiveSpeakersChanged, onActiveSpeakersChanged);
     room.on(RoomEvent.Connected, onConnected);
 
-    // If already connected when this effect runs, fire immediately
     if (room.state === ConnectionState.Connected) {
       onConnected();
     }
 
     return () => {
       room.off(RoomEvent.ParticipantAttributesChanged, onAttributesChanged);
+      room.off(RoomEvent.ActiveSpeakersChanged, onActiveSpeakersChanged);
       room.off(RoomEvent.Connected, onConnected);
+      setIsAgentSpeaking(false);
     };
   }, [session.room]);
 
@@ -286,6 +300,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       connect,
       disconnect,
       room: session.room,
+      isAgentSpeaking,
     }),
     [
       isConnectionActive,
@@ -294,6 +309,7 @@ export function ConnectionProvider({ children }: ConnectionProviderProps) {
       connect,
       disconnect,
       session.room,
+      isAgentSpeaking,
     ]
   );
 

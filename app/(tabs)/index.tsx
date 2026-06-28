@@ -24,7 +24,7 @@ import { useStorage, DailyCheckIn } from '@/services/storage';
 import Voice from '@react-native-voice/voice';
 import { useCustomAlert } from '@/components/CustomAlert';
 import { TIPS } from './tips';
-import { useAudioPlayer } from '@/hooks/useAudioPlayer';
+import { useScreenAudio } from '@/hooks/useScreenAudio';
 
 const MOODS = [
   { id: 'great', emoji: '😊', label: 'Great' },
@@ -136,7 +136,7 @@ export default function HomeScreen() {
   const { colorScheme } = useThemeContext();
   const activeColors = Colors[colorScheme];
   const { showAlert, AlertModal } = useCustomAlert();
-  const { play, stop, isPlaying, activeKey } = useAudioPlayer();
+  const { play, stop, isPlaying, activeKey } = useScreenAudio('home');
 
   // Stop playback when screen is navigated away from / unmounted
   useEffect(() => {

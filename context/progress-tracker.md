@@ -70,13 +70,23 @@
 - Connected the custom `ThemeContext` directly to `@/hooks/useColorScheme` so the selected Light/Dark/System preference immediately propagates to all screens using `useColorScheme`.
 - Fixed LiveKit Cloud deployment tool registration crash by decorating python functions with `@llm.function_tool` to convert them to `FunctionTool` instances.
 - Enabled auto-dispatch routing for named agents by configuring the LiveKit Cloud agent worker to run as a named agent matching the explicit `lk dispatch create` room settings.
-## In Progress
-
-- Production live validation and testing of the standalone release binary.
+- Changed the bundle ID and Android package name to `com.sheguard.app` inside `app.json` and regenerated native directories via `npx expo prebuild --clean`.
+- Fixed the startup crash caused by `expo-dev-client` casting NPE by removing the package, aligning dependencies, and setting up clean gradle compilation.
+- Resolved Gradle manifest merger namespace collisions by enabling Jetifier (`android.enableJetifier=true`) inside `gradle.properties`.
+- Patched Android audio timing inside `useAudioPlayer.ts` — moved `setAudioModeAsync` into `play()`, added 150ms settle delay on Android, and fixed the status callback guard condition.
+- Fixed Appwrite `saveProfile` schema verification 400 errors by stripping undeclared attributes (`phone`, `avatar`, `doctor_phone`) from the cloud data payload.
+- Added rich location search (geocoding) to the Maternity Locator screen using OSM Nominatim API to convert place names (e.g., Ikorodu) to coordinates and fetch clinic results.
+- Implemented client-side hospital bookmarking (AsyncStorage-backed) with a "Saved" filter pill and toggle button on card layouts.
+- Created `AudioPlayerContext.tsx` and `useScreenAudio.ts` to manage shared audio guide states globally.
+- Implemented first-launch onboarding modal in Pidgin requesting audio guide confirmation.
+- Integrated `useScreenAudio` in all screens for automatic narration playback on first visits.
+- Created premium floating `AudioGuideIndicator` SpeakingIndicator component with animated waveform bars (pulse when playing, freeze when paused), play/pause toggles, and clear/stop buttons.
+- Integrated automatic agent dispatch inside the serverless Appwrite function (`scratch/appwrite-function/src/main.js`) using `AgentDispatchClient` to spin up `sheguard-ai` on token request.
 
 ## Next Up
 
-- Distribute release APK for clinical testing.
+- Deploy final production version to clinical test group.
+- Collect feedback on speech response latency.
 
 ## Open Questions
 

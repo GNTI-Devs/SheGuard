@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
 
 export type AudioGuideKey =
@@ -22,24 +23,16 @@ const AUDIO_ASSETS: Record<AudioGuideKey, any> = {
   settings: require('@/assets/audio/settings.wav'),
 };
 
+const ANDROID_SETTLE_MS = 150;
+
 export function useAudioPlayer() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeKey, setActiveKey] = useState<AudioGuideKey | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
 
-  // Setup audio category once on initialization
+  // Clean up sound on unmount only
   useEffect(() => {
-    Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
-      playThroughEarpieceAndroid: false,
-      staysActiveInBackground: false,
-    }).catch((err: any) =>
-      console.warn('[useAudioPlayer] setAudioModeAsync error:', err)
-    );
-
     return () => {
-      // Clean up sound on unmount
       if (soundRef.current) {
         soundRef.current.unloadAsync().catch(() => {});
       }
@@ -62,14 +55,33 @@ export function useAudioPlayer() {
 
   const play = async (key: AudioGuideKey) => {
     try {
-      // If playing the same sound, stop it (toggle action)
+      // Toggle: if same key is playing, stop it
       if (activeKey === key && isPlaying) {
         await stop();
         return;
       }
 
-      // Stop any existing sound
+      // Stop any existing sound first
       await stop();
+
+      // Re-configure audio mode before every playback to guarantee
+      // correct routing after returning from background or a LiveKit call
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        playThroughEarpieceAndroid: false,
+        staysActiveInBackground: false,
+      }).catch((err: any) =>
+        console.warn('[useAudioPlayer] setAudioModeAsync error:', err)
+      );
+
+      // On Android, give the OS audio session time to release focus before
+      // starting a new sound — prevents the first syllable from being clipped
+      if (Platform.OS === 'android') {
+        await new Promise<void>((resolve) =>
+          setTimeout(resolve, ANDROID_SETTLE_MS)
+        );
+      }
 
       const source = AUDIO_ASSETS[key];
       if (!source) {
@@ -81,7 +93,8 @@ export function useAudioPlayer() {
         source,
         { shouldPlay: true },
         (status: any) => {
-          if (status.isLoaded && !status.isPlaying && status.didJustFinish) {
+          // Guard: only react when fully loaded and truly finished
+          if (status.isLoaded && status.didJustFinish && !status.isPlaying) {
             setIsPlaying(false);
             setActiveKey(null);
           }

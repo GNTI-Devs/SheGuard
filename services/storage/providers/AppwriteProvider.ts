@@ -117,11 +117,12 @@ export class AppwriteProvider implements IStorageService {
       await this.initSession();
       if (!this.isUserAuthenticated) return;
 
+      // Only include attributes that exist in the Appwrite 'profiles' collection
+      // schema. phone, avatar, and doctorPhone are stored locally only until
+      // those optional attributes are added in the Appwrite Console.
       const data = {
         user_id: profile.id,
         display_name: profile.name,
-        phone: profile.phone,
-        avatar: profile.avatar,
         language: profile.language,
         pregnancy_month: profile.pregnancyMonth,
         due_date: profile.dueDate,

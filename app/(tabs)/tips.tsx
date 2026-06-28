@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import * as Speech from 'expo-speech';
-import { useAudioPlayer } from '@/hooks/useAudioPlayer';
+import { useScreenAudio } from '@/hooks/useScreenAudio';
 
 if (
   Platform.OS === 'android' &&
@@ -639,7 +639,7 @@ export default function TipsScreen() {
     stop: stopGuide,
     isPlaying: isPlayingGuide,
     activeKey: activeKeyGuide,
-  } = useAudioPlayer();
+  } = useScreenAudio('tips');
 
   // Clean up and stop speaking when screen unmounts
   useEffect(() => {

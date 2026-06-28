@@ -15,7 +15,7 @@ import { Colors } from '@/constants/Colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useStorage, DailyCheckIn } from '@/services/storage';
-import { useAudioPlayer } from '@/hooks/useAudioPlayer';
+import { useScreenAudio } from '@/hooks/useScreenAudio';
 
 const SYMPTOMS = [
   { id: 'nausea', label: '🤢 Nausea / Vomiting', warning: false },
@@ -36,7 +36,7 @@ export default function HistoryScreen() {
   } = useConversationHistory();
   const colorScheme = useColorScheme();
   const activeColors = Colors[colorScheme ?? 'light'];
-  const { play, stop, isPlaying, activeKey } = useAudioPlayer();
+  const { play, stop, isPlaying, activeKey } = useScreenAudio('history');
 
   useEffect(() => {
     return () => {

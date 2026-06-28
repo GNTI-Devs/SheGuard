@@ -165,7 +165,25 @@ export default function HospitalsScreen() {
   } | null>(null);
   const [nearbyAreas, setNearbyAreas] = useState<string[]>([]);
   const [activeArea, setActiveArea] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  // Name filter: instantly filters the currently-loaded list
+  const [nameFilter, setNameFilter] = useState('');
+  // Location search: geocodes the query and fetches new hospitals
+  const [locationQuery, setLocationQuery] = useState('');
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  // Saved hospitals
+  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [showSavedOnly, setShowSavedOnly] = useState(false);
+
+  const SAVED_KEY = 'saved_hospital_ids';
+
+  // Load saved hospitals from AsyncStorage on mount
+  useEffect(() => {
+    AsyncStorage.getItem(SAVED_KEY)
+      .then((raw) => {
+        if (raw) setSavedIds(JSON.parse(raw));
+      })
+      .catch(() => {});
+  }, []);
 
   const postToWebView = (payload: object) => {
     if (webViewRef.current) {
@@ -425,6 +443,50 @@ export default function HospitalsScreen() {
     if (userCoords) fetchHospitals(userCoords.lat, userCoords.lng, true);
   };
 
+  /** Geocode a place name via Nominatim, then fetch hospitals for that location */
+  const handleLocationSearch = async () => {
+    const query = locationQuery.trim();
+    if (!query) return;
+    setIsGeocoding(true);
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+        query
+      )}&format=json&limit=1`;
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent':
+            'SheGuardAI/1.0 (maternal health companion; contact: support@sheguard.org)',
+        },
+      });
+      const data = await res.json();
+      if (!data || data.length === 0) {
+        Alert.alert(
+          'Place Not Found',
+          `"${query}" could not be found. Try a different search.`
+        );
+        return;
+      }
+      const lat = parseFloat(data[0].lat);
+      const lng = parseFloat(data[0].lon);
+      setUserCoords({ lat, lng });
+      postToWebView({ type: 'setUserLocation', lat, lng });
+      await fetchHospitals(lat, lng, true);
+    } catch (err) {
+      Alert.alert('Search Error', 'Could not search that location. Check your connection.');
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
+
+  /** Toggle save/bookmark for a hospital */
+  const handleToggleSave = async (id: string) => {
+    const next = savedIds.includes(id)
+      ? savedIds.filter((s) => s !== id)
+      : [...savedIds, id];
+    setSavedIds(next);
+    await AsyncStorage.setItem(SAVED_KEY, JSON.stringify(next)).catch(() => {});
+  };
+
   const handleMessage = (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
@@ -454,9 +516,12 @@ export default function HospitalsScreen() {
     } catch (_) {}
   };
 
-  // Filter displayed list by active area pill & search query
+  // Filter displayed list by active area pill, name filter, and saved filter
   const displayedHospitals = hospitals.filter((h) => {
-    // 1. Area filter
+    // 1. Saved-only filter
+    if (showSavedOnly && !savedIds.includes(h.id)) return false;
+
+    // 2. Area pill filter
     if (activeArea) {
       const matchArea =
         h.tags['addr:suburb'] === activeArea ||
@@ -466,9 +531,9 @@ export default function HospitalsScreen() {
       if (!matchArea) return false;
     }
 
-    // 2. Search query filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+    // 3. Name/address text filter (instant, client-side)
+    if (nameFilter.trim()) {
+      const q = nameFilter.toLowerCase().trim();
       const matchName = h.name?.toLowerCase().includes(q);
       const matchAddr = h.address?.toLowerCase().includes(q);
       const matchCity = h.tags['addr:city']?.toLowerCase().includes(q);
@@ -620,7 +685,7 @@ export default function HospitalsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Search Bar */}
+      {/* Location Search Bar — geocodes the typed place, fetches new hospitals */}
       <View
         style={[
           styles.searchBarContainer,
@@ -630,18 +695,50 @@ export default function HospitalsScreen() {
           },
         ]}
       >
-        <Ionicons name="search" size={18} color={activeColors.textMuted} />
+        <Ionicons name="location" size={18} color={activeColors.primary} />
         <TextInput
-          placeholder="Search clinics or hospitals..."
+          placeholder="Search by area e.g. Ikorodu, Surulere..."
           placeholderTextColor={activeColors.textMuted}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+          value={locationQuery}
+          onChangeText={setLocationQuery}
+          onSubmitEditing={handleLocationSearch}
+          returnKeyType="search"
+          style={[styles.searchInput, { color: activeColors.text }]}
+          autoCapitalize="words"
+          autoCorrect={false}
+        />
+        {isGeocoding ? (
+          <ActivityIndicator size="small" color={activeColors.primary} />
+        ) : (
+          <TouchableOpacity onPress={handleLocationSearch} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="search" size={18} color={activeColors.primary} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Name Filter Bar — instantly filters the currently-loaded list */}
+      <View
+        style={[
+          styles.searchBarContainer,
+          {
+            backgroundColor: activeColors.surface,
+            borderColor: activeColors.border,
+            marginTop: 6,
+          },
+        ]}
+      >
+        <Ionicons name="filter" size={18} color={activeColors.textMuted} />
+        <TextInput
+          placeholder="Filter by clinic name..."
+          placeholderTextColor={activeColors.textMuted}
+          value={nameFilter}
+          onChangeText={setNameFilter}
           style={[styles.searchInput, { color: activeColors.text }]}
           autoCapitalize="none"
           autoCorrect={false}
         />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
+        {nameFilter.length > 0 && (
+          <TouchableOpacity onPress={() => setNameFilter('')}>
             <Ionicons name="close-circle" size={18} color={activeColors.textMuted} />
           </TouchableOpacity>
         )}
@@ -675,75 +772,95 @@ export default function HospitalsScreen() {
         )}
       </View>
 
-      {/* Area Filter Pills — dynamically built from real fetched data */}
-      {nearbyAreas.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.pillsRow}
+      {/* Filter Pills — area pills + Saved pill */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.pillsRow}
+      >
+        {/* "All" pill */}
+        <TouchableOpacity
+          onPress={() => { setActiveArea(null); setShowSavedOnly(false); }}
+          style={[
+            styles.pill,
+            {
+              backgroundColor:
+                activeArea === null && !showSavedOnly
+                  ? activeColors.primary
+                  : activeColors.surface,
+              borderColor: activeColors.border,
+            },
+          ]}
         >
-          {/* "All" pill */}
+          <Ionicons
+            name="locate"
+            size={14}
+            color={activeArea === null && !showSavedOnly ? '#fff' : activeColors.primary}
+            style={{ marginRight: 4 }}
+          />
+          <Text
+            style={[
+              styles.pillText,
+              { color: activeArea === null && !showSavedOnly ? '#fff' : activeColors.textMuted },
+            ]}
+          >
+            All nearby
+          </Text>
+        </TouchableOpacity>
+
+        {/* Saved pill */}
+        <TouchableOpacity
+          onPress={() => { setShowSavedOnly(!showSavedOnly); setActiveArea(null); }}
+          style={[
+            styles.pill,
+            {
+              backgroundColor: showSavedOnly ? '#C85A46' : activeColors.surface,
+              borderColor: showSavedOnly ? '#C85A46' : activeColors.border,
+            },
+          ]}
+        >
+          <Ionicons
+            name={showSavedOnly ? 'bookmark' : 'bookmark-outline'}
+            size={14}
+            color={showSavedOnly ? '#fff' : activeColors.textMuted}
+            style={{ marginRight: 4 }}
+          />
+          <Text
+            style={[
+              styles.pillText,
+              { color: showSavedOnly ? '#fff' : activeColors.textMuted },
+            ]}
+          >
+            Saved ({savedIds.length})
+          </Text>
+        </TouchableOpacity>
+
+        {nearbyAreas.map((area) => (
           <TouchableOpacity
-            onPress={() => setActiveArea(null)}
+            key={area}
+            onPress={() => { handleAreaPill(area); setShowSavedOnly(false); }}
             style={[
               styles.pill,
               {
                 backgroundColor:
-                  activeArea === null
+                  activeArea === area
                     ? activeColors.primary
                     : activeColors.surface,
                 borderColor: activeColors.border,
               },
             ]}
           >
-            <Ionicons
-              name="locate"
-              size={14}
-              color={activeArea === null ? '#fff' : activeColors.primary}
-              style={{ marginRight: 4 }}
-            />
             <Text
               style={[
                 styles.pillText,
-                {
-                  color: activeArea === null ? '#fff' : activeColors.textMuted,
-                },
+                { color: activeArea === area ? '#fff' : activeColors.textMuted },
               ]}
             >
-              All nearby
+              {area}
             </Text>
           </TouchableOpacity>
-
-          {nearbyAreas.map((area) => (
-            <TouchableOpacity
-              key={area}
-              onPress={() => handleAreaPill(area)}
-              style={[
-                styles.pill,
-                {
-                  backgroundColor:
-                    activeArea === area
-                      ? activeColors.primary
-                      : activeColors.surface,
-                  borderColor: activeColors.border,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.pillText,
-                  {
-                    color:
-                      activeArea === area ? '#fff' : activeColors.textMuted,
-                  },
-                ]}
-              >
-                {area}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
+        ))}
+      </ScrollView>
 
       {/* Hospital Cards */}
       <FlatList
@@ -810,15 +927,30 @@ export default function HospitalsScreen() {
                     </View>
                   )}
                 </View>
-                <TouchableOpacity
-                  onPress={() => handleCallHospital(item.phone)}
-                  style={[
-                    styles.callButton,
-                    { backgroundColor: activeColors.primary },
-                  ]}
-                >
-                  <Ionicons name="call" size={16} color="#FFFFFF" />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                  {/* Bookmark/Save button */}
+                  <TouchableOpacity
+                    onPress={() => handleToggleSave(item.id)}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    style={styles.bookmarkBtn}
+                  >
+                    <Ionicons
+                      name={savedIds.includes(item.id) ? 'bookmark' : 'bookmark-outline'}
+                      size={18}
+                      color={savedIds.includes(item.id) ? '#C85A46' : activeColors.textMuted}
+                    />
+                  </TouchableOpacity>
+                  {/* Call button */}
+                  <TouchableOpacity
+                    onPress={() => handleCallHospital(item.phone)}
+                    style={[
+                      styles.callButton,
+                      { backgroundColor: activeColors.primary },
+                    ]}
+                  >
+                    <Ionicons name="call" size={16} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <View style={styles.addressRow}>
@@ -1028,6 +1160,13 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  bookmarkBtn: {
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,

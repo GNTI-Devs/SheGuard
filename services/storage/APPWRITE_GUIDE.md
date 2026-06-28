@@ -30,6 +30,14 @@ Stores user profile information.
   | `is_demo` | Boolean | - | Yes | No |
   | `emergency_contacts` | String | 255 | No | **Yes** |
   | `created_at` | String | 255 | Yes | No |
+  | `phone` | String | 20 | No | No |
+  | `avatar` | String | 100 | No | No |
+  | `doctor_phone` | String | 20 | No | No |
+
+> [!NOTE]
+> `phone`, `avatar`, and `doctor_phone` are **optional** and not yet added to the
+> cloud schema. Until you add them in the Appwrite Console, the app stores these
+> fields in local AsyncStorage only. Add them to enable full cloud sync.
 
 ---
 
@@ -91,6 +99,7 @@ In your Appwrite Console, navigate to **Functions** -> **Create Function** -> **
 Inside the Function settings tab, add:
 * `LIVEKIT_API_KEY`: *(Your LiveKit project key)*
 * `LIVEKIT_API_SECRET`: *(Your LiveKit project secret)*
+* `LIVEKIT_URL`: `https://novasync-novasync-9ozn4l47.livekit.cloud` *(HTTPS, not wss://)*
 
 ### Step 3: Implement Function Code (`src/main.js`)
 Install dependency:
@@ -100,7 +109,7 @@ npm install livekit-server-sdk
 
 Write the following serverless token generator code:
 ```javascript
-import { AccessToken } from 'livekit-server-sdk';
+import { AccessToken, AgentDispatchClient } from 'livekit-server-sdk';
 
 export default async ({ req, res, log, error }) => {
   try {
@@ -111,27 +120,38 @@ export default async ({ req, res, log, error }) => {
 
     const apiKey = process.env.LIVEKIT_API_KEY;
     const apiSecret = process.env.LIVEKIT_API_SECRET;
+    const livekitUrl = process.env.LIVEKIT_URL;
 
-    if (!apiKey || !apiSecret) {
+    if (!apiKey || !apiSecret || !livekitUrl) {
       throw new Error('Missing LiveKit environment variables on Appwrite Function.');
     }
 
+    // 1. Generate the participant JWT token
     const token = new AccessToken(apiKey, apiSecret, {
       identity: identity,
       name: identity,
     });
-
     token.addGrant({
       roomJoin: true,
       room: roomName,
       canUpdateOwnMetadata: true,
     });
-
-    token.metadata = JSON.stringify({
-      language: language
-    });
-
+    token.metadata = JSON.stringify({ language });
     const tokenJwt = await token.toJwt();
+
+    // 2. Dispatch the SheGuard AI agent to the room automatically.
+    // This replaces the manual terminal dispatch step.
+    try {
+      const agentClient = new AgentDispatchClient(livekitUrl, apiKey, apiSecret);
+      await agentClient.createDispatch(roomName, 'sheguard-ai', {
+        metadata: JSON.stringify({ language }),
+      });
+      log(`Agent dispatched to room: ${roomName}`);
+    } catch (dispatchErr) {
+      // Non-fatal: log and continue. The user still gets a valid token.
+      error('Agent dispatch warning (non-fatal): ' + dispatchErr.message);
+    }
+
     return res.json({ token: tokenJwt });
   } catch (err) {
     error('Token generation failed: ' + err.message);

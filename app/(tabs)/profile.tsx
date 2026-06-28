@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCustomAlert } from '@/components/CustomAlert';
-import { useAudioPlayer } from '@/hooks/useAudioPlayer';
+import { useScreenAudio } from '@/hooks/useScreenAudio';
 import { useEffect } from 'react';
 
 export default function ProfileScreen() {
@@ -27,7 +27,7 @@ export default function ProfileScreen() {
   const activeColors = Colors[colorScheme];
   const router = useRouter();
   const { showAlert, AlertModal } = useCustomAlert();
-  const { play, stop, isPlaying, activeKey } = useAudioPlayer();
+  const { play, stop, isPlaying, activeKey } = useScreenAudio('profile_setup');
 
   useEffect(() => {
     return () => {
