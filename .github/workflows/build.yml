@@ -115,3 +115,67 @@ jobs:
           name: sheguard-ios-release
           path: ios/SheGuard-iOS-Simulator.zip
           if-no-files-found: error
+
+  publish:
+    name: Publish Latest Release
+    needs: [build-android, build-ios]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download Android Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sheguard-android-release
+          path: ./dist-android
+
+      - name: Download iOS Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sheguard-ios-release
+          path: ./dist-ios
+
+      - name: Prepare Release Files
+        run: |
+          mkdir -p release-files
+          # Find and copy APK
+          APK_FILE=$(find ./dist-android -name "*.apk" | head -n 1)
+          if [ -n "$APK_FILE" ]; then
+            cp "$APK_FILE" "release-files/SheGuard-Latest.apk"
+          fi
+          # Find and copy iOS Zip
+          IOS_FILE=$(find ./dist-ios -name "*.zip" | head -n 1)
+          if [ -n "$IOS_FILE" ]; then
+            cp "$IOS_FILE" "release-files/SheGuard-iOS-Simulator-Latest.zip"
+          fi
+
+      - name: Update Latest Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "SheGuard AI — Latest Build"
+          prerelease: true
+          make_latest: "true"
+          body: |
+            ## 📲 Download SheGuard AI (Latest Build)
+            
+            This release is built automatically on every commit to the \`main\` branch.
+            
+            ### Android
+            Download the latest **SheGuard-Latest.apk** file below.
+            
+            ### iOS Simulator
+            Download the latest **SheGuard-iOS-Simulator-Latest.zip** below for emulator usage.
+            
+            ---
+            *Last updated: ${{ github.event.head_commit.message }}*
+          files: |
+            release-files/SheGuard-Latest.apk
+            release-files/SheGuard-iOS-Simulator-Latest.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
